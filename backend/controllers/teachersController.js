@@ -66,3 +66,4 @@ const deleteTeacher = async (req, res) => {
 module.exports = { getTeachers, addTeacher, updateTeacher, deleteTeacher };
 
 
+

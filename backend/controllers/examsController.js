@@ -30,8 +30,25 @@ const getResultsForStudent = async (req, res) => {
 const updateResult = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subject, marks, total } = req.body;
-    const result = await pool.query('UPDATE exam_results SET subject=$1, marks=$2, total=$3 WHERE id=$4 RETURNING *', [subject, marks || null, total || null, id]);
+    const allowed = ['subject', 'marks', 'total'];
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+        fields.push(`${key} = $${idx++}`);
+        values.push(req.body[key]);
+      }
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields provided' });
+    }
+
+    values.push(id);
+    const sql = `UPDATE exam_results SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`;
+    const result = await pool.query(sql, values);
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Result not found' });
     return res.json({ success: true, result: result.rows[0] });
   } catch (error) {
@@ -51,6 +68,38 @@ const deleteResult = async (req, res) => {
   }
 };
 
-module.exports = { addOrUpdateResult, getResultsForStudent, updateResult, deleteResult };
+const upsertFeedback = async (req, res) => {
+  try {
+    const { student_id, exam_type, comments } = req.body;
+    if (!student_id || !exam_type) return res.status(400).json({ success: false, message: 'Missing fields' });
+    const result = await pool.query(
+      `INSERT INTO exam_feedback (student_id, exam_type, comments)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (student_id, exam_type) DO UPDATE SET comments = EXCLUDED.comments, updated_at = NOW()
+       RETURNING *`,
+      [student_id, exam_type, comments || null]
+    );
+    return res.json({ success: true, feedback: result.rows[0] });
+  } catch (error) {
+    console.error('Error saving exam feedback:', error);
+    return res.status(500).json({ success: false, message: 'Error saving feedback' });
+  }
+};
+
+const getFeedback = async (req, res) => {
+  try {
+    const { studentId, examType } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM exam_feedback WHERE student_id = $1 AND exam_type = $2 LIMIT 1',
+      [studentId, examType]
+    );
+    return res.json({ success: true, feedback: result.rows[0] || null });
+  } catch (error) {
+    console.error('Error fetching exam feedback:', error);
+    return res.status(500).json({ success: false, message: 'Error fetching feedback' });
+  }
+};
+
+module.exports = { addOrUpdateResult, getResultsForStudent, updateResult, deleteResult, upsertFeedback, getFeedback };
 
 

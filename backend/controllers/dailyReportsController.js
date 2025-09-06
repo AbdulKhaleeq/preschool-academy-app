@@ -29,6 +29,38 @@ const getDailyReportsForStudent = async (req, res) => {
   }
 };
 
-module.exports = { upsertDailyReport, getDailyReportsForStudent };
+const getDailyReportByDate = async (req, res) => {
+  try {
+    const { studentId, date } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM daily_reports WHERE student_id = $1 AND report_date = $2 LIMIT 1',
+      [studentId, date]
+    );
+    return res.json({ success: true, report: result.rows[0] || null });
+  } catch (error) {
+    console.error('Error fetching daily report by date:', error);
+    return res.status(500).json({ success: false, message: 'Error fetching report' });
+  }
+};
+
+const getReportDatesWithNotes = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const result = await pool.query(
+      `SELECT report_date
+       FROM daily_reports
+       WHERE student_id = $1 AND notes IS NOT NULL AND TRIM(notes) <> ''
+       ORDER BY report_date DESC`,
+      [studentId]
+    );
+    const dates = result.rows.map(r => r.report_date);
+    return res.json({ success: true, dates });
+  } catch (error) {
+    console.error('Error fetching report dates with notes:', error);
+    return res.status(500).json({ success: false, message: 'Error fetching dates' });
+  }
+};
+
+module.exports = { upsertDailyReport, getDailyReportsForStudent, getDailyReportByDate, getReportDatesWithNotes };
 
 

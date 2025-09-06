@@ -34,6 +34,7 @@ const runMigrations = async () => {
       name TEXT NOT NULL,
       age INT,
       parent_phone TEXT,
+      mother_phone TEXT,
       father_phone TEXT,
       teacher_name TEXT,
       class_name TEXT NOT NULL,
@@ -60,11 +61,10 @@ const runMigrations = async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
-      student_id INT REFERENCES students(id) ON DELETE SET NULL,
-      teacher_name TEXT,
-      parent_phone TEXT,
-      from_role TEXT NOT NULL CHECK (from_role IN ('teacher','parent')),
-      content TEXT NOT NULL,
+      sender_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      receiver_id INT REFERENCES users(id) ON DELETE SET NULL,
+      receiver_group TEXT CHECK (receiver_group IN ('all_parents')),
+      message TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
@@ -81,14 +81,24 @@ const runMigrations = async () => {
     );
   `);
 
+  // Per-student, per-exam feedback/comments from teachers
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS exam_feedback (
+      id SERIAL PRIMARY KEY,
+      student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      exam_type TEXT NOT NULL CHECK (exam_type IN ('FA-1','SA-1','FA-2','SA-2')),
+      comments TEXT,
+      updated_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE (student_id, exam_type)
+    );
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS announcements (
       id SERIAL PRIMARY KEY,
-      title TEXT NOT NULL,
-      content TEXT NOT NULL,
-      created_by_role TEXT NOT NULL CHECK (created_by_role IN ('admin','teacher')),
-      created_by_name TEXT,
-      audience TEXT DEFAULT 'all',
+      admin_id INT REFERENCES users(id) ON DELETE SET NULL,
+      audience VARCHAR(20) NOT NULL CHECK (audience IN ('parents','teachers','all')),
+      message TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);

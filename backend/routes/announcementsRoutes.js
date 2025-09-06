@@ -5,8 +5,9 @@ const { listAnnouncements, createAnnouncement } = require('../controllers/announ
 const router = express.Router();
 
 router.get('/', authenticate, authorize('admin', 'teacher', 'parent'), listAnnouncements);
-router.post('/', authenticate, authorize('admin', 'teacher'), createAnnouncement);
+router.post('/', authenticate, authorize('admin'), createAnnouncement);
 
 module.exports = router;
+
 
 

@@ -10,3 +10,4 @@ router.post('/', authenticate, authorize('admin', 'teacher'), createActivity);
 module.exports = router;
 
 
+

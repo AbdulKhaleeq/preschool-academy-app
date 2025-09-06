@@ -28,3 +28,4 @@ const createActivity = async (req, res) => {
 module.exports = { listActivities, createActivity };
 
 
+

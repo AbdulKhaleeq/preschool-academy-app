@@ -1,3 +1,12 @@
+process.on('uncaughtException', (err) => {
+  console.error('🚨 Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 Unhandled Rejection:', reason);
+});
+
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -18,7 +27,7 @@ const { runMigrations } = require('./config/dbInit');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 
 // Middleware
 app.use(cors());
@@ -74,11 +83,19 @@ app.use('/students-update', studentsUpdateRoutes);
 
 runMigrations()
   .then(() => {
+    console.log("✅ Migrations completed successfully");
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
-    console.error('Migration error:', err);
-    process.exit(1);
+    console.error('❌ Migration error:', err);
+    // comment this out temporarily to keep server alive
+    // process.exit(1);
   });
+
+
+//   setInterval(() => {
+//   console.log("💓 Backend heartbeat: still alive", new Date().toISOString());
+// }, 5000);
+

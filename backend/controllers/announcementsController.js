@@ -2,7 +2,15 @@ const { pool } = require('../config/db');
 
 const listAnnouncements = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM announcements ORDER BY created_at DESC');
+    const role = req.user?.role;
+    let where = '';
+    const params = [];
+    if (role === 'parent') {
+      where = "WHERE audience IN ('parents','all')";
+    } else if (role === 'teacher') {
+      where = "WHERE audience IN ('teachers','all')";
+    }
+    const result = await pool.query(`SELECT * FROM announcements ${where} ORDER BY created_at DESC`, params);
     return res.json({ success: true, announcements: result.rows });
   } catch (error) {
     console.error('Error listing announcements:', error);
@@ -12,11 +20,13 @@ const listAnnouncements = async (req, res) => {
 
 const createAnnouncement = async (req, res) => {
   try {
-    const { title, content, created_by_role, created_by_name, audience } = req.body;
-    if (!title || !content || !created_by_role) return res.status(400).json({ success: false, message: 'Missing fields' });
+    const { message, audience } = req.body;
+    if (!message || !audience) return res.status(400).json({ success: false, message: 'Missing fields' });
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Forbidden' });
+    const adminId = req.user?.id || null;
     const result = await pool.query(
-      `INSERT INTO announcements (title, content, created_by_role, created_by_name, audience) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [title, content, created_by_role, created_by_name || null, audience || 'all']
+      `INSERT INTO announcements (admin_id, audience, message) VALUES ($1, $2, $3) RETURNING *`,
+      [adminId, audience, message]
     );
     return res.json({ success: true, announcement: result.rows[0] });
   } catch (error) {
@@ -26,5 +36,6 @@ const createAnnouncement = async (req, res) => {
 };
 
 module.exports = { listAnnouncements, createAnnouncement };
+
 
 

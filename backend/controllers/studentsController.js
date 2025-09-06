@@ -51,21 +51,11 @@ const addStudent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    // Prefer legacy schema to match existing UI; fall back to alternative if provided
-    if (typeof age !== 'undefined' || typeof parent_phone !== 'undefined' || typeof teacher_name !== 'undefined') {
-      const result = await pool.query(
-        `INSERT INTO students (name, age, parent_phone, teacher_name, class_name, date_of_birth, emergency_contact, medical_notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [name, age || null, parent_phone || null, teacher_name || null, class_name, date_of_birth || null, emergency_contact || null, medical_notes || null]
-      );
-      return res.json({ success: true, student: result.rows[0], message: 'Student added successfully' });
-    }
-
-    // Alternative insert if using updated fields
+    // Unified insert using current schema
     const result = await pool.query(
-      `INSERT INTO students (name, date_of_birth, class_name, parent_phone, father_phone, program, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [name, date_of_birth || null, class_name, mother_phone || null, father_phone || null, program || null, notes || null]
+      `INSERT INTO students (name, age, parent_phone, mother_phone, father_phone, teacher_name, class_name, date_of_birth, emergency_contact, medical_notes, program, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [name, age || null, parent_phone || null, mother_phone || null, father_phone || null, teacher_name || null, class_name, date_of_birth || null, emergency_contact || null, medical_notes || null, program || null, notes || null]
     );
     return res.json({ success: true, student: result.rows[0], message: 'Student added successfully' });
   } catch (error) {
