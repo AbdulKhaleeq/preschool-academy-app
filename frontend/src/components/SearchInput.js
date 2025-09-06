@@ -21,3 +21,4 @@ const SearchInput = ({ placeholder = 'Search...', onChange }) => {
 export default SearchInput;
 
 
+

@@ -32,7 +32,10 @@ const EditUserModal = ({ isOpen, onClose, user, onUpdated }) => {
         return;
       }
       const payload = { ...form, phone_number: cleanedPhone };
+      console.log("➡️ Sending update payload:", payload);
       const { data } = await api.put(`/users/${user.id}`, payload);
+      // 🔍 Log backend response
+    console.log("⬅️ Backend response:", data);
       if (data.success) {
         onUpdated?.(data.user);
         onClose();

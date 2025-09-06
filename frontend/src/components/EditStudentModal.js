@@ -117,7 +117,7 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
           {error && <div className="error-message">{error}</div>}
           <div className="modal-actions">
             <button className="cancel-btn" type="button" onClick={onClose}>Cancel</button>
-            <button className="submit-btn" type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save'}</button>
+            <button className="submit-btn" type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Student'}</button>
           </div>
         </form>
       </div>

@@ -597,11 +597,12 @@ button:disabled {
 /* Fix Modal Content */
 .modal-content {
   background: white !important;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
   width: 90% !important;
-  max-width: 500px !important;
-  max-height: 80vh !important;
+  max-width: 680px !important;
+  max-height: 85vh !important;
   overflow-y: auto !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15) !important;
 }
 
 /* Fix Modal Header */
@@ -782,4 +783,76 @@ button:disabled {
     flex-direction: column !important;
   }
 }
+
+/* Calendar Overrides (react-calendar) */
+.react-calendar {
+  width: 100% !important;
+  max-width: 500px !important;
+  background: #fff !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  font-family: 'Inter', sans-serif !important;
+  padding: 1rem !important;
+}
+
+.react-calendar__navigation {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 1rem !important;
+}
+
+.react-calendar button {
+  width: auto !important; /* reset global button width */
+  background: none !important; /* reset gradient */
+  border: none !important;
+  box-shadow: none !important;
+  color: inherit !important;
+}
+
+.react-calendar__navigation button {
+  font-size: 1.2rem !important;
+  padding: 0.5rem 0.8rem !important;
+  cursor: pointer !important;
+  border-radius: 6px !important;
+}
+
+.react-calendar__navigation button:hover {
+  background: #f0f0f0 !important;
+}
+
+.react-calendar__month-view__weekdays {
+  text-align: center !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.react-calendar__tile {
+  background: transparent !important; /* remove purple */
+  border-radius: 8px !important;
+  padding: 12px 0 !important;
+  text-align: center !important;
+  font-size: 0.9rem !important;
+  cursor: pointer !important;
+}
+
+.react-calendar__tile:hover {
+  background: #f3f4f6 !important;
+}
+
+.react-calendar__tile--now {
+  background: #e0e7ff !important;
+  font-weight: bold !important;
+  border-radius: 8px !important;
+}
+
+.react-calendar__tile--active {
+  background: #4f46e5 !important;
+  color: white !important;
+  border-radius: 8px !important;
+}
+
+.react-calendar__tile abbr[title] { text-decoration: none !important; }
 

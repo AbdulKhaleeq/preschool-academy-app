@@ -6,12 +6,15 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
   const [formData, setFormData] = useState({
     name: '',
     age: '',
-    parent_phone: '',
-    teacher_id: '',
+    mother_phone: '',
+    father_phone: '',
+    teacher_name: '',
     class_name: '',
     date_of_birth: '',
     emergency_contact: '',
-    medical_notes: ''
+    medical_notes: '',
+    program: '',
+    notes: ''
   });
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -25,12 +28,15 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
       setFormData({
         name: '',
         age: '',
-        parent_phone: '',
-        teacher_id: '',
+        mother_phone: '',
+        father_phone: '',
+        teacher_name: '',
         class_name: '',
         date_of_birth: '',
         emergency_contact: '',
-        medical_notes: ''
+        medical_notes: '',
+        program: '',
+        notes: ''
       });
       setErrors({});
     }
@@ -53,7 +59,6 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -62,70 +67,39 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
     }
   };
 
-  const handleTeacherChange = (e) => {
-    const teacherId = e.target.value;
-    const selectedTeacher = teachers.find(t => t.id.toString() === teacherId);
-    
-    setFormData(prev => ({
-      ...prev,
-      teacher_id: teacherId,
-      class_name: selectedTeacher ? selectedTeacher.class_name : prev.class_name
-    }));
-    
-    if (errors.teacher_id) {
-      setErrors(prev => ({
-        ...prev,
-        teacher_id: ''
-      }));
-    }
-  };
-
   const validateForm = () => {
     const newErrors = {};
-    
     if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.age || formData.age < 1 || formData.age > 18) {
-      newErrors.age = 'Age must be between 1 and 10';
-    }
-    if (!formData.parent_phone.trim()) {
-      newErrors.parent_phone = 'Parent phone is required';
-    } else if (!/^\d{10}$/.test(formData.parent_phone.replace(/\D/g, ''))) {
-      newErrors.parent_phone = 'Please enter a valid 10-digit phone number';
-    }
-    if (!formData.teacher_id) newErrors.teacher_id = 'Please select a teacher';
-    if (!formData.class_name.trim()) newErrors.class_name = 'Class name is required';
+    if (!formData.age || formData.age < 1 || formData.age > 18) newErrors.age = 'Age must be between 1 and 18';
     if (!formData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required';
-    if (!formData.emergency_contact.trim()) {
-      newErrors.emergency_contact = 'Emergency contact is required';
+    if (!formData.class_name.trim()) newErrors.class_name = 'Class name is required';
+    if (!formData.teacher_name) newErrors.teacher_name = 'Please select a teacher';
+    if (!formData.mother_phone.trim()) newErrors.mother_phone = 'Mother\'s phone is required';
+    if (!formData.father_phone.trim()) newErrors.father_phone = 'Father\'s phone is required';
+    if (!formData.program) newErrors.program = 'Program is required';
+    if (!['mother','father'].includes(formData.primary_contact || 'mother')) {
+      // normalize default selection
+      setFormData(prev => ({ ...prev, primary_contact: 'mother' }));
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-    
     setLoading(true);
-    
     try {
-      // Get selected teacher's name for the request
-      const selectedTeacher = teachers.find(t => t.id.toString() === formData.teacher_id);
-      
+      const parentPhone = (formData.primary_contact === 'father' ? formData.father_phone : formData.mother_phone) || '';
       const studentData = {
         ...formData,
-        teacher_name: selectedTeacher ? selectedTeacher.name : '',
+        parent_phone: parentPhone,
         age: parseInt(formData.age)
       };
-
       const { data } = await api.post('/students', studentData);
-      
       if (data.success) {
         onStudentAdded(data.student);
         onClose();
-        alert('Student added successfully!');
       } else {
         alert(data.message || 'Error adding student');
       }
@@ -151,31 +125,12 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="name">Student Name *</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className={errors.name ? 'error' : ''}
-                placeholder="Enter student name"
-              />
+              <input type="text" id="name" name="name" value={formData.name} onChange={handleInputChange} className={errors.name ? 'error' : ''} placeholder="Enter student name" />
               {errors.name && <span className="error-message">{errors.name}</span>}
             </div>
-
             <div className="form-group">
               <label htmlFor="age">Age *</label>
-              <input
-                type="number"
-                id="age"
-                name="age"
-                value={formData.age}
-                onChange={handleInputChange}
-                className={errors.age ? 'error' : ''}
-                placeholder="Enter age"
-                min="1"
-                max="18"
-              />
+              <input type="number" id="age" name="age" value={formData.age} onChange={handleInputChange} className={errors.age ? 'error' : ''} placeholder="Enter age" min="1" max="18" />
               {errors.age && <span className="error-message">{errors.age}</span>}
             </div>
           </div>
@@ -183,109 +138,81 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="date_of_birth">Date of Birth *</label>
-              <input
-                type="date"
-                id="date_of_birth"
-                name="date_of_birth"
-                value={formData.date_of_birth}
-                onChange={handleInputChange}
-                className={errors.date_of_birth ? 'error' : ''}
-              />
+              <input type="date" id="date_of_birth" name="date_of_birth" value={formData.date_of_birth} onChange={handleInputChange} className={errors.date_of_birth ? 'error' : ''} />
               {errors.date_of_birth && <span className="error-message">{errors.date_of_birth}</span>}
             </div>
-
             <div className="form-group">
-              <label htmlFor="parent_phone">Parent Phone *</label>
-              <input
-                type="tel"
-                id="parent_phone"
-                name="parent_phone"
-                value={formData.parent_phone}
-                onChange={handleInputChange}
-                className={errors.parent_phone ? 'error' : ''}
-                placeholder="Enter parent phone number"
-              />
-              {errors.parent_phone && <span className="error-message">{errors.parent_phone}</span>}
+              <label htmlFor="class_name">Class Name *</label>
+              <input type="text" id="class_name" name="class_name" value={formData.class_name} onChange={handleInputChange} className={errors.class_name ? 'error' : ''} placeholder="Enter class name" />
+              {errors.class_name && <span className="error-message">{errors.class_name}</span>}
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="teacher_id">Select Teacher *</label>
-              <select
-                id="teacher_id"
-                name="teacher_id"
-                value={formData.teacher_id}
-                onChange={handleTeacherChange}
-                className={errors.teacher_id ? 'error' : ''}
-              >
+              <label htmlFor="teacher_name">Select Teacher *</label>
+              <select id="teacher_name" name="teacher_name" value={formData.teacher_name} onChange={handleInputChange} className={errors.teacher_name ? 'error' : ''}>
                 <option value="">Select a teacher</option>
                 {teachers.map(teacher => (
-                  <option key={teacher.id} value={teacher.id}>
-                    {teacher.name} - {teacher.class_name}
-                  </option>
+                  <option key={teacher.id} value={teacher.name}>{teacher.name} - {teacher.class_name}</option>
                 ))}
               </select>
-              {errors.teacher_id && <span className="error-message">{errors.teacher_id}</span>}
+              {errors.teacher_name && <span className="error-message">{errors.teacher_name}</span>}
             </div>
-
             <div className="form-group">
-              <label htmlFor="class_name">Class Name *</label>
-              <input
-                type="text"
-                id="class_name"
-                name="class_name"
-                value={formData.class_name}
-                onChange={handleInputChange}
-                className={errors.class_name ? 'error' : ''}
-                placeholder="Enter class name"
-              />
-              {errors.class_name && <span className="error-message">{errors.class_name}</span>}
+              <label htmlFor="program">Program *</label>
+              <select id="program" name="program" value={formData.program} onChange={handleInputChange} className={errors.program ? 'error' : ''}>
+                <option value="">Select</option>
+                <option value="School">School</option>
+                <option value="Tuition">Tuition</option>
+              </select>
+              {errors.program && <span className="error-message">{errors.program}</span>}
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="mother_phone">Mother's Phone *</label>
+              <input type="tel" id="mother_phone" name="mother_phone" value={formData.mother_phone} onChange={handleInputChange} className={errors.mother_phone ? 'error' : ''} placeholder="Enter mother's phone number" />
+              {errors.mother_phone && <span className="error-message">{errors.mother_phone}</span>}
+            </div>
+            <div className="form-group">
+              <label htmlFor="father_phone">Father's Phone *</label>
+              <input type="tel" id="father_phone" name="father_phone" value={formData.father_phone} onChange={handleInputChange} className={errors.father_phone ? 'error' : ''} placeholder="Enter father's phone number" />
+              {errors.father_phone && <span className="error-message">{errors.father_phone}</span>}
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="primary_contact">Primary Contact *</label>
+              <select id="primary_contact" name="primary_contact" value={formData.primary_contact || 'mother'} onChange={handleInputChange}>
+                <option value="mother">Mother</option>
+                <option value="father">Father</option>
+              </select>
+            </div>
+            <div className="form-group"></div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="emergency_contact">Emergency Contact</label>
+              <input type="tel" id="emergency_contact" name="emergency_contact" value={formData.emergency_contact} onChange={handleInputChange} placeholder="Enter emergency contact number" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="medical_notes">Medical Notes</label>
+              <textarea id="medical_notes" name="medical_notes" value={formData.medical_notes} onChange={handleInputChange} placeholder="Enter any medical notes or allergies (optional)" rows="3" />
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="emergency_contact">Emergency Contact *</label>
-            <input
-              type="tel"
-              id="emergency_contact"
-              name="emergency_contact"
-              value={formData.emergency_contact}
-              onChange={handleInputChange}
-              className={errors.emergency_contact ? 'error' : ''}
-              placeholder="Enter emergency contact number"
-            />
-            {errors.emergency_contact && <span className="error-message">{errors.emergency_contact}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="medical_notes">Medical Notes</label>
-            <textarea
-              id="medical_notes"
-              name="medical_notes"
-              value={formData.medical_notes}
-              onChange={handleInputChange}
-              placeholder="Enter any medical notes or allergies (optional)"
-              rows="3"
-            />
+            <label htmlFor="notes">Notes</label>
+            <textarea id="notes" name="notes" value={formData.notes} onChange={handleInputChange} placeholder="Any notes" rows="3" />
           </div>
 
           <div className="form-buttons">
-            <button 
-              type="button" 
-              onClick={onClose}
-              className="cancel-button"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit"
-              className="submit-button"
-              disabled={loading}
-            >
-              {loading ? 'Adding...' : 'Add Student'}
-            </button>
+            <button type="button" onClick={onClose} className="cancel-button" disabled={loading}>Cancel</button>
+            <button type="submit" className="submit-button" disabled={loading}>{loading ? 'Saving...' : 'Save Student'}</button>
           </div>
         </form>
       </div>
