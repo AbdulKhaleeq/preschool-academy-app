@@ -33,10 +33,6 @@ const runMigrations = async () => {
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       age INT,
-      parent_phone TEXT,
-      mother_phone TEXT,
-      father_phone TEXT,
-      teacher_name TEXT,
       class_name TEXT NOT NULL,
       date_of_birth DATE,
       emergency_contact TEXT,
@@ -62,8 +58,10 @@ const runMigrations = async () => {
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
       sender_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      student_id INT REFERENCES students(id) ON DELETE SET NULL,
       receiver_id INT REFERENCES users(id) ON DELETE SET NULL,
-      receiver_group TEXT CHECK (receiver_group IN ('all_parents')),
+      conversation_id UUID DEFAULT gen_random_uuid(),
+      read_at TIMESTAMP,
       message TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
     );
@@ -124,6 +122,25 @@ const runMigrations = async () => {
       is_paid BOOLEAN DEFAULT FALSE,
       updated_at TIMESTAMP DEFAULT NOW(),
       UNIQUE (student_id, month, year)
+    );
+  `);
+
+  // Enable pgcrypto for gen_random_uuid()
+  await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS student_parents (
+      student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      parent_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      PRIMARY KEY (student_id, parent_id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS student_teachers (
+      student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      teacher_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      PRIMARY KEY (student_id, teacher_id)
     );
   `);
 };
