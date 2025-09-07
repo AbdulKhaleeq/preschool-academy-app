@@ -1,0 +1,143 @@
+.message-composer {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.message-composer .message-header h3 {
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.recipient-selection {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.recipient-selection label {
+    font-weight: bold;
+    color: #555;
+}
+
+.recipient-selection select {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    font-size: 1rem;
+    background-color: #fff;
+    flex-grow: 1;
+    max-width: 400px; /* Limit width for better readability */
+}
+
+.message-list {
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 15px;
+    height: 300px;
+    overflow-y: auto;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.message-item {
+    padding: 10px 15px;
+    border-radius: 15px;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.message-item.sent {
+    align-self: flex-end;
+    background-color: #dcf8c6; /* Light green for sent messages */
+    color: #333;
+    border-bottom-right-radius: 2px;
+}
+
+.message-item.received {
+    align-self: flex-start;
+    background-color: #e2e2e2; /* Light gray for received messages */
+    color: #333;
+    border-bottom-left-radius: 2px;
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85em;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.message-header strong {
+    color: #0056b3; /* Darker blue for sender name */
+}
+
+.message-context {
+    font-style: italic;
+    margin-left: 5px;
+}
+
+.message-time {
+    color: #999;
+}
+
+.message-item p {
+    margin: 0;
+    line-height: 1.4;
+}
+
+.message-input-area {
+    display: flex;
+    gap: 10px;
+}
+
+.message-input-area textarea {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    font-size: 1rem;
+    resize: vertical;
+    min-height: 60px;
+}
+
+.message-input-area textarea:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+    outline: none;
+}
+
+.message-input-area button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s ease;
+}
+
+.message-input-area button:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.message-input-area button:disabled {
+    background-color: #a0c9f1;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.error-message {
+    color: red;
+    text-align: center;
+    margin-top: 10px;
+}

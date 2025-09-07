@@ -2,24 +2,30 @@ import React, { useEffect, useState } from 'react';
 import TeacherStudentsView from './TeacherStudentsView';
 import api from '../api';
 import TeacherExamsTab from './TeacherExamsTab';
+import MessageComposer from './MessageComposer'; // New import
 
 const TeacherDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [overview, setOverview] = useState({ total: 0, presentToday: 0, messages: 0, tests: 0 });
+  const [teacherContacts, setTeacherContacts] = useState([]); // New state for teacher contacts
 
   useEffect(() => {
-    const loadOverview = async () => {
+    const loadOverviewAndContacts = async () => {
       try {
-        const [studentsRes, msgsRes] = await Promise.all([
+        const [studentsRes, msgsRes, contactsRes] = await Promise.all([
           api.get(`/students/teacher/${encodeURIComponent(user.name)}`),
-          api.get(`/messages/teacher/${encodeURIComponent(user.name)}`)
+          api.get(`/messages?otherUserId=${user.id}`), // Fetch messages relevant to the teacher
+          api.get('/messages/teacher/contacts') // Fetch teacher contacts
         ]);
         const total = studentsRes.data?.students?.length || 0;
-        const messages = msgsRes.data?.messages?.length || 0;
+        const messages = msgsRes.data?.messages?.length || 0; // Assuming this count is for unread messages or total messages
         setOverview({ total, presentToday: 0, messages, tests: 0 });
-      } catch (e) {}
+        setTeacherContacts(contactsRes.data?.students || []);
+      } catch (e) {
+        console.error("Error loading teacher dashboard data:", e);
+      }
     };
-    loadOverview();
+    loadOverviewAndContacts();
   }, [user]);
 
   return (
@@ -46,7 +52,7 @@ const TeacherDashboard = ({ user }) => {
           className={`tab ${activeTab === 'messages' ? 'active' : ''}`}
           onClick={() => setActiveTab('messages')}
         >
-          💬 Parent Messages
+          💬 Messages
         </button>
         <button 
           className={`tab ${activeTab === 'activities' ? 'active' : ''}`}
@@ -104,21 +110,11 @@ const TeacherDashboard = ({ user }) => {
 
         {activeTab === 'messages' && (
           <div className="messages-section">
-            <div className="section-header">
-              <h3>💬 Parent Communications</h3>
-              <button className="add-btn">+ New Message</button>
-            </div>
-            <div className="messages-list">
-              <div className="message-item urgent">
-                <div className="message-header">
-                  <strong>Johnson Family</strong>
-                  <span className="message-time">1 hour ago</span>
-                  <span className="priority">🔴 Urgent</span>
-                </div>
-                <p>Emma seems to have a slight fever. Should I pick her up early?</p>
-                <button className="reply-btn">Reply</button>
-              </div>
-            </div>
+            <MessageComposer 
+              user={user} 
+              contacts={teacherContacts} 
+              isTeacher={true} 
+            />
           </div>
         )}
 

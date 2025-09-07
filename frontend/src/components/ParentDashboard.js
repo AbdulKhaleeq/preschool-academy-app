@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api';
 import ParentExamResultsModal from './ParentExamResultsModal';
 import ParentDailyReportsModal from './ParentDailyReportsModal';
+import MessageComposer from './MessageComposer'; // New import
 
 const ParentDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -14,6 +15,7 @@ const ParentDashboard = ({ user }) => {
   const [dailyModal, setDailyModal] = useState({ open: false, student: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [parentContacts, setParentContacts] = useState([]); // New state for parent contacts
 
   useEffect(() => {
     if (activeTab === 'children') {
@@ -21,6 +23,7 @@ const ParentDashboard = ({ user }) => {
     }
     if (activeTab === 'messages') {
       fetchMyMessages();
+      fetchParentContacts(); // Fetch parent contacts when message tab is active
     }
     if (activeTab === 'schedule') {
       fetchAnnouncementsAndActivities();
@@ -60,12 +63,24 @@ const ParentDashboard = ({ user }) => {
   const fetchMyMessages = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get(`/messages/parent/${encodeURIComponent(user.phone)}`);
-      if (data.success) setMessages(data.messages);
+      // Use the new common messages API endpoint
+      const { data } = await api.get(`/messages?otherUserId=${user.id}`);
+      if (data.status === 'success') setMessages(data.messages);
     } catch (err) {
       console.error('Error fetching messages:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchParentContacts = async () => {
+    try {
+      const { data } = await api.get('/messages/parent/contacts');
+      if (data.status === 'success') {
+        setParentContacts(data.children || []);
+      }
+    } catch (err) {
+      console.error('Error fetching parent contacts:', err);
     }
   };
 
@@ -197,29 +212,11 @@ const ParentDashboard = ({ user }) => {
 
         {activeTab === 'messages' && (
           <div className="messages-section">
-            <div className="section-header">
-              <h3>Messages from Teachers</h3>
-              <button className="add-btn" onClick={() => {
-                const content = prompt('Type message to teacher');
-                if (!content) return;
-                // send message to first student's teacher if available
-                const first = students[0];
-                api.post('/messages', { from_role: 'parent', content, parent_phone: user.phone, student_id: first?.id || null, teacher_name: first?.teacher_name || null })
-                  .then(fetchMyMessages)
-                  .catch(() => alert('Failed to send message'));
-              }}>+ New Message</button>
-            </div>
-            <div className="messages-list">
-              {messages.map(m => (
-                <div key={m.id} className="message-item">
-                  <div className="message-header">
-                    <strong>{m.from_role === 'teacher' ? `${m.teacher_name}` : 'You'}</strong>
-                    <span className="message-time">{new Date(m.created_at).toLocaleString()}</span>
-                  </div>
-                  <p>{m.content}</p>
-                </div>
-              ))}
-            </div>
+            <MessageComposer 
+              user={user} 
+              contacts={parentContacts} 
+              isTeacher={false} 
+            />
           </div>
         )}
 
