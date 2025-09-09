@@ -11,6 +11,7 @@ import ConfirmModal from './ConfirmModal';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
 import SearchInput from './SearchInput';
+import AdminAnnouncements from './AdminAnnouncements';
 
 
 const AdminDashboard = ({ user }) => {
@@ -245,6 +246,12 @@ const handleBackToTeachers = () => {
           onClick={() => setActiveTab('reports')}
         >
           📋 Reports
+        </button>
+        <button 
+          className={`tab ${activeTab === 'announcements' ? 'active' : ''}`}
+          onClick={() => setActiveTab('announcements')}
+        >
+          📢 Announcements
         </button>
       </div>
 
@@ -494,6 +501,7 @@ const handleBackToTeachers = () => {
             </div>
           </div>
         )}
+        {activeTab === 'announcements' && <AdminAnnouncements />}
       </div>
 
       {/* Add Teacher Modal */}

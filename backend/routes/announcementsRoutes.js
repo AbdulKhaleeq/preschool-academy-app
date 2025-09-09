@@ -1,11 +1,9 @@
 const express = require('express');
-const { authenticate, authorize } = require('../middleware/auth');
-const { listAnnouncements, createAnnouncement } = require('../controllers/announcementsController');
-
 const router = express.Router();
+const { createAnnouncement, getAnnouncements } = require('../controllers/announcementsController');
+const { authenticate, authorize } = require('../middleware/auth');
 
-router.get('/', authenticate, authorize('admin', 'teacher', 'parent'), listAnnouncements);
-router.post('/', authenticate, authorize('admin'), createAnnouncement);
+router.route('/').post(authenticate, authorize(['admin']), createAnnouncement).get(authenticate, getAnnouncements);
 
 module.exports = router;
 

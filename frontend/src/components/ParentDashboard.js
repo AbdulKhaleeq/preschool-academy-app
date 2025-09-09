@@ -4,6 +4,7 @@ import api from '../api';
 import ParentExamResultsModal from './ParentExamResultsModal';
 import ParentDailyReportsModal from './ParentDailyReportsModal';
 import MessageComposer from './MessageComposer';
+import AnnouncementsView from './AnnouncementsView';
 
 const ParentDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -34,6 +35,9 @@ const ParentDashboard = ({ user }) => {
     }
     if (activeTab === 'schedule') {
       fetchAnnouncementsAndActivities();
+    }
+    if (activeTab === 'announcements') {
+      // No need to fetch announcements here, AnnouncementsView component will do it
     }
   }, [activeTab, user]);
 
@@ -203,6 +207,12 @@ const ParentDashboard = ({ user }) => {
         >
           📅 Schedule
         </button>
+        <button 
+          className={`tab ${activeTab === 'announcements' ? 'active' : ''}`}
+          onClick={() => setActiveTab('announcements')}
+        >
+          📢 Announcements
+        </button>
       </div>
 
       <div className="dashboard-body">
@@ -333,6 +343,7 @@ const ParentDashboard = ({ user }) => {
             </div>
           </div>
         )}
+        {activeTab === 'announcements' && <AnnouncementsView />}
       </div>
 
       <ParentExamResultsModal

@@ -3,6 +3,7 @@ import TeacherStudentsView from './TeacherStudentsView';
 import api from '../api';
 import TeacherExamsTab from './TeacherExamsTab';
 import MessageComposer from './MessageComposer'; // New import
+import AnnouncementsView from './AnnouncementsView';
 
 const TeacherDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -65,6 +66,12 @@ const TeacherDashboard = ({ user }) => {
           onClick={() => setActiveTab('exams')}
         >
           🧪 Tests & Exams
+        </button>
+        <button 
+          className={`tab ${activeTab === 'announcements' ? 'active' : ''}`}
+          onClick={() => setActiveTab('announcements')}
+        >
+          📢 Announcements
         </button>
       </div>
 
@@ -142,6 +149,7 @@ const TeacherDashboard = ({ user }) => {
             <TeacherExamsTab teacherName={user.name} />
           </div>
         )}
+        {activeTab === 'announcements' && <AnnouncementsView />}
       </div>
     </div>
   );
