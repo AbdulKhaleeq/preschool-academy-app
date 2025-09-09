@@ -1,4 +1,4 @@
-/* AdminAnnouncements.css - match old app look precisely */
+    /* AdminAnnouncements.css - match old app look precisely */
 
 /* page layout */
 .admin-announcements-page {
@@ -217,7 +217,6 @@
   .meta-right { margin-left: 0; margin-top: 6px; }
   .item-header { justify-content: space-between; align-items: flex-start; gap: 8px; }
 }
-
 
 /* === Targeted final overrides for Admin Announcements UI === */
 

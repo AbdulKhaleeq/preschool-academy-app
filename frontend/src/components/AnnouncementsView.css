@@ -84,3 +84,55 @@
     margin-left: 0;
   }
 }
+
+/* === Parent/Teacher Announcements UI fixes === */
+
+/* 1) Sender (Admin) bluish shade */
+.announcement-sender {
+  color: #2563eb !important; /* Tailwind blue-600 */
+  font-weight: 600;
+  font-size: 15px;
+}
+
+/* 2) Card background stays light grey */
+.announcement-item {
+  background: #f7f9fc !important; /* soft bluish-grey */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 3) Header alignment: sender + timestamp on same line */
+.announcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 4) Timestamp styling */
+.announcement-date {
+  color: #6b7280; /* neutral grey */
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* 5) Message text aligned left with consistent spacing */
+.announcement-message {
+  font-size: 15px;
+  line-height: 1.6;
+  margin-top: 4px;
+  color: #111827;
+}
+
+/* 6) On narrow screens, stack timestamp under sender */
+@media (max-width: 720px) {
+  .announcement-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .announcement-date {
+    margin-left: 0;
+  }
+}
