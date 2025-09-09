@@ -1,551 +1,504 @@
-import React, { useState, useEffect, useRef } from 'react';
+// MessageComposer.js
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../api';
-import './MessageComposer.css';
+import './MessageComposer.chat.css';
 
-const MessageComposer = ({ user, contacts, isTeacher }) => {
-    const [messageContent, setMessageContent] = useState('');
-    const [selectedRecipient, setSelectedRecipient] = useState(null);
-    const [selectedStudentForTeacher, setSelectedStudentForTeacher] = useState(null);
-    const [messages, setMessages] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [isMobileView, setIsMobileView] = useState(false); // Start with false for desktop
-    const [showChatView, setShowChatView] = useState(false);
-    const textareaRef = useRef(null);
-    const messagesEndRef = useRef(null);
+/**
+ * MessageComposer.js
+ * - Shows merged student names for parents with multiple children
+ * - Ensures bubbles display "Re: <Child1, Child2>" when selected contact has multiple students
+ * - Adds students list to optimistic messages so temporary bubbles also look correct
+ *
+ * Props:
+ * - user: { userId, id, name, ... }
+ * - contacts: array (shape depends on parent/teacher view)
+ * - isTeacher: boolean
+ * - initialContact: optional object to auto-select a contact when opened (used by ParentDashboard)
+ */
 
-    // Better viewport detection
-    useEffect(() => {
-        const checkViewport = () => {
-            const width = window.innerWidth;
-            const isMobile = width <= 768;
-            console.log('Viewport width:', width, 'Is Mobile:', isMobile); // Debug log
-            setIsMobileView(isMobile);
-            if (!isMobile) {
-                setShowChatView(false);
-            }
-        };
-
-        // Check immediately
-        checkViewport();
-        
-        // Add resize listener
-        window.addEventListener('resize', checkViewport);
-        
-        return () => window.removeEventListener('resize', checkViewport);
-    }, []);
-
-    // Force scroll to bottom on desktop when messages change
-    useEffect(() => {
-        if (!isMobileView && messagesEndRef.current) {
-            setTimeout(() => {
-                messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-            }, 100);
-        }
-    }, [messages, isMobileView]);
-
-    const fetchMessages = async (otherUserId = null, studentId = null) => {
-        setLoading(true);
-        setError(null);
-        try {
-            let url = `/messages`;
-            const queryParams = [];
-            if (otherUserId) {
-                queryParams.push(`otherUserId=${otherUserId}`);
-            }
-            if (studentId) {
-                queryParams.push(`studentId=${studentId}`);
-            }
-            if (queryParams.length > 0) {
-                url += `?${queryParams.join('&')}`;
-            }
-            
-            const response = await api.get(url);
-            if (response.data.status === 'success') {
-                // Always sort oldest first - CSS will handle display order for mobile
-                const sortedMessages = response.data.messages.sort((a, b) => 
-                    new Date(a.created_at) - new Date(b.created_at)
-                );
-                setMessages(sortedMessages);
-            } else {
-                setError(response.data.message || 'Failed to fetch messages');
-            }
-        } catch (err) {
-            console.error("Error fetching messages:", err);
-            setError('Unable to load messages. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchMessages();
-    }, [user, contacts]);
-
-    useEffect(() => {
-        if (selectedRecipient && selectedRecipient.id !== 'all') {
-            fetchMessages(selectedRecipient.id, selectedStudentForTeacher);
-        } else {
-            fetchMessages();
-        }
-    }, [selectedRecipient, selectedStudentForTeacher]);
-
-    const handleSendMessage = async () => {
-        if (!messageContent.trim()) return;
-
-        const tempMessage = {
-            id: Date.now(),
-            sender_id: user.userId,
-            sender_name: 'You',
-            message: messageContent.trim(),
-            created_at: new Date().toISOString(),
-            temp: true
-        };
-
-        // Always add to end of array - CSS handles display order
-        setMessages(prev => [...prev, tempMessage]);
-        
-        setMessageContent('');
-        
-        // Reset textarea height
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-        }
-        
-        setLoading(true);
-        setError(null);
-
-        try {
-            let payload = { messageContent: messageContent.trim() };
-            let endpoint;
-
-            if (isTeacher) {
-                if (selectedRecipient && selectedRecipient.type === 'parent') {
-                    endpoint = '/messages/teacher/send-to-parent';
-                    payload.studentId = selectedStudentForTeacher;
-                    payload.parentId = selectedRecipient.id;
-                } else if (selectedStudentForTeacher) {
-                    endpoint = '/messages/teacher/send-to-all-parents';
-                    payload.studentId = selectedStudentForTeacher;
-                } else {
-                    endpoint = '/messages/teacher/send-to-all-parents';
-                }
-            } else {
-                if (!selectedRecipient || selectedRecipient.type !== 'teacher') {
-                    setError('Please select a teacher to send a message to.');
-                    setMessages(prev => prev.filter(msg => !msg.temp));
-                    setLoading(false);
-                    return;
-                }
-                endpoint = '/messages/parent/send-to-teacher';
-                payload.teacherId = selectedRecipient.id;
-                if (selectedStudentForTeacher) {
-                    payload.studentId = selectedStudentForTeacher;
-                }
-            }
-
-            const response = await api.post(endpoint, payload);
-
-            if (response.data.status === 'success') {
-                const fetchOtherUserId = (selectedRecipient && selectedRecipient.id !== 'all') ? selectedRecipient.id : null;
-                fetchMessages(fetchOtherUserId, selectedStudentForTeacher);
-            } else {
-                setError(response.data.message || 'Failed to send message');
-                setMessages(prev => prev.filter(msg => !msg.temp));
-            }
-        } catch (err) {
-            console.error("Error sending message:", err);
-            setError(err.response?.data?.message || 'Failed to send message. Please try again.');
-            setMessages(prev => prev.filter(msg => !msg.temp));
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleKeyPress = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-        }
-    };
-
-    const handleTextareaChange = (e) => {
-        setMessageContent(e.target.value);
-        
-        // Auto-resize textarea
-        const textarea = textareaRef.current;
-        if (textarea) {
-            textarea.style.height = 'auto';
-            const maxHeight = isMobileView ? 80 : 200;
-            textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + 'px';
-        }
-    };
-
-    const getRecipientOptions = () => {
-        const options = [];
-        if (isTeacher) {
-            options.push({ id: 'all', name: 'All Parents of My Students', type: 'group' });
-            contacts.forEach(student => {
-                student.parents.forEach(parent => {
-                    options.push({ 
-                        id: parent.parentId, 
-                        name: `${parent.parentName}`, 
-                        subName: `Parent of ${student.studentName}`,
-                        type: 'parent',
-                        studentId: student.studentId
-                    });
-                });
-            });
-        } else {
-            contacts.forEach(child => {
-                child.teachers.forEach(teacher => {
-                    options.push({ 
-                        id: teacher.teacherId, 
-                        name: `${teacher.teacherName}`, 
-                        subName: `Teacher of ${child.studentName}`,
-                        type: 'teacher',
-                        studentId: child.studentId
-                    });
-                });
-            });
-        }
-        return options;
-    };
-
-    const getInitials = (name) => {
-        return name.split(' ').map(n => n[0]).join('').toUpperCase();
-    };
-
-    const handleContactSelect = (option) => {
-        if (option.id === 'all') {
-            setSelectedRecipient({id: 'all', name: 'All Parents of My Students', type: 'group'});
-            setSelectedStudentForTeacher(null);
-        } else {
-            setSelectedRecipient(option);
-            if (isTeacher && option.type === 'parent') {
-                setSelectedStudentForTeacher(option.studentId);
-            } else if (!isTeacher && option.type === 'teacher') {
-                setSelectedStudentForTeacher(option.studentId);
-            }
-        }
-        
-        if (isMobileView) {
-            setShowChatView(true);
-        }
-    };
-
-    const handleBackToContacts = () => {
-        setShowChatView(false);
-    };
-
-    const renderMessages = () => {
-        if (loading && messages.length === 0) {
-            return (
-                <div className="loading-state">
-                    <div className="loading-spinner"></div>
-                    <span>Loading messages...</span>
-                </div>
-            );
-        }
-        
-        if (error && messages.length === 0) {
-            return (
-                <div className="error-message">
-                    {error}
-                </div>
-            );
-        }
-        
-        if (messages.length === 0) {
-            return (
-                <div className="empty-state">
-                    <div className="empty-state-icon">💬</div>
-                    <h3>No messages yet</h3>
-                    <p>Start a conversation by sending your first message!</p>
-                </div>
-            );
-        }
-
-        return (
-        <>
-            {messages.map(msg => {
-                // Fix the alignment logic - check if current user sent the message
-                const isSentByCurrentUser = msg.sender_id === user.userId;
-                
-                return (
-                    <div 
-                        key={msg.id} 
-                        className={`message-item ${isSentByCurrentUser ? 'sent' : 'received'} ${msg.temp ? 'sending' : ''}`}
-                    >
-                        <div className="message-item-header">
-                            <div className="message-sender">
-                                {isSentByCurrentUser ? 'You' : msg.sender_name}
-                                {msg.student_name && (
-                                    <span className="message-context">
-                                        Re: {msg.student_name}
-                                    </span>
-                                )}
-                            </div>
-                            <span className="message-time">
-                                {new Date(msg.created_at).toLocaleString('en-US', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    month: 'short',
-                                    day: 'numeric'
-                                })}
-                            </span>
-                        </div>
-                        <p>{msg.message}</p>
-                        {isSentByCurrentUser && (
-                            <div className="message-status">
-                                {msg.temp ? 'Sending...' : 'Delivered'}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-            {!isMobileView && <div ref={messagesEndRef} />}
-        </>
-    );
+const formatTime = (iso) => {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch {
+    return '';
+  }
 };
 
-    // Debug logging
-    console.log('Current view mode:', isMobileView ? 'Mobile' : 'Desktop');
+const initialsFromName = (name) =>
+  (name || '').split(' ').map(n => n[0] || '').slice(0, 2).join('').toUpperCase();
 
-    const renderDesktopView = () => (
-        <div className="message-composer desktop-view">
-            <div className="message-header">
-                <h3>{isTeacher ? 'Teacher Messages' : 'Parent Messages'}</h3>
-            </div>
-            
-            <div className="message-composer-content">
-                <div className="message-sidebar">
-                    <div className="recipient-selection">
-                        <label>Select Contact</label>
-                        <select 
-                            onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === '' || value === 'all') {
-                                    const option = value === 'all' ? 
-                                        {id: 'all', name: 'All Parents of My Students', type: 'group'} : 
-                                        null;
-                                    handleContactSelect(option);
-                                } else {
-                                    const [type, id, studentIdStr] = value.split('-');
-                                    const studentId = studentIdStr ? parseInt(studentIdStr) : null;
-                                    const option = getRecipientOptions().find(opt => 
-                                        opt.id == id && opt.type === type && (opt.studentId === studentId || !opt.studentId)
-                                    );
-                                    handleContactSelect(option);
-                                }
-                            }} 
-                            value={selectedRecipient ? (selectedRecipient.id === 'all' ? 'all' : `${selectedRecipient.type}-${selectedRecipient.id}-${selectedRecipient.studentId || ''}`) : ''}
-                        >
-                            <option value="">-- Select Contact --</option>
-                            {getRecipientOptions().map(option => (
-                                <option 
-                                    key={`${option.type}-${option.id}-${option.studentId || ''}`}
-                                    value={option.id === 'all' ? 'all' : `${option.type}-${option.id}-${option.studentId || ''}`}
-                                >
-                                    {option.name} {option.subName && `(${option.subName})`}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    
-                    <div className="contacts-list">
-                        {getRecipientOptions().map(option => (
-                            <div
-                                key={`${option.type}-${option.id}-${option.studentId || ''}`}
-                                className={`contact-item ${selectedRecipient && (selectedRecipient.id === option.id || (selectedRecipient.id === 'all' && option.id === 'all')) ? 'active' : ''}`}
-                                onClick={() => handleContactSelect(option)}
-                            >
-                                <div className="contact-avatar">
-                                    {option.id === 'all' ? '👥' : getInitials(option.name)}
-                                </div>
-                                <div className="contact-info">
-                                    <div className="contact-name">
-                                        {option.id === 'all' ? 'All Parents' : option.name}
-                                    </div>
-                                    <div className="contact-role">
-                                        {option.id === 'all' ? 'Broadcast Message' : option.subName}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+/* Single message bubble */
+const MessageBubble = ({ msg, isSentByMe, currentUserName }) => {
+  // Prefer msg.students (array) -> join, else msg.student_name (single)
+  const studentLabel = msg.students && msg.students.length ? msg.students.join(', ')
+                       : msg.student_name || '';
 
-                <div className="message-main">
-                    <div className="message-list">
-                        {renderMessages()}
-                    </div>
-
-                    <div className="message-input-section desktop-input">
-                        {error && (
-                            <div className="error-message">
-                                {error}
-                            </div>
-                        )}
-                        
-                        <div className="message-input-area desktop-input-area">
-                            <div className="message-input-wrapper desktop-input-wrapper">
-                                <textarea
-                                    ref={textareaRef}
-                                    className="desktop-textarea"
-                                    placeholder="Type your message here... Press Enter to send, Shift+Enter for new line"
-                                    value={messageContent}
-                                    onChange={handleTextareaChange}
-                                    onKeyPress={handleKeyPress}
-                                />
-                                <button className="emoji-button desktop-emoji" type="button">
-                                    😊
-                                </button>
-                            </div>
-                            <button 
-                                className="send-button desktop-send"
-                                onClick={handleSendMessage} 
-                                disabled={loading || !messageContent.trim()}
-                            >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polygon points="3,11 22,2 13,21 11,13 3,11"></polygon>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className={`message-bubble ${isSentByMe ? 'sent' : 'received'} ${msg.temp ? 'sending' : ''}`} title={msg.message}>
+      {!isSentByMe && (
+        <div className="bubble-avatar" title={msg.sender_name || 'User'}>
+          {initialsFromName(msg.sender_name)}
         </div>
-    );
+      )}
 
-    const renderMobileView = () => {
-    if (showChatView && selectedRecipient) {
-        return (
-            <div className="message-composer mobile-view chat-view">
-                <div className="mobile-chat-header">
-                    <button className="mobile-back-button" onClick={handleBackToContacts}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="m15 18-6-6 6-6"/>
-                        </svg>
-                    </button>
-                    <div className="chat-info">
-                        <div className="chat-avatar">
-                            {selectedRecipient.id === 'all' ? '👥' : getInitials(selectedRecipient.name)}
-                        </div>
-                        <div className="chat-details">
-                            <div className="chat-name">
-                                {selectedRecipient.id === 'all' ? 'All Parents' : selectedRecipient.name}
-                            </div>
-                            <div className="chat-role">
-                                {selectedRecipient.id === 'all' ? 'Broadcast' : selectedRecipient.subName}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div className="mobile-message-list">
-                    {renderMessages()}
-                </div>
-                
-                <div className="mobile-message-input">
-                    {error && (
-                        <div className="error-message">
-                            {error}
-                        </div>
-                    )}
-                    <div className="mobile-input-area">
-                        <textarea
-                            ref={textareaRef}
-                            placeholder="Type a message..."
-                            value={messageContent}
-                            onChange={handleTextareaChange}
-                            onKeyPress={handleKeyPress}
-                        />
-                        <button 
-                            className="mobile-send-button"
-                            onClick={handleSendMessage} 
-                            disabled={loading || !messageContent.trim()}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWeight="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polygon points="3,11 22,2 13,21 11,13 3,11"></polygon>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
+      <div className="bubble-body">
+        <div className="bubble-meta">
+          <div className="meta-left">
+            <span className="meta-sender">{isSentByMe ? 'You' : msg.sender_name}</span>
+            {(studentLabel) && (
+              <span className="meta-context">Re: {studentLabel}</span>
+            )}
+          </div>
+          <div className="meta-time">{formatTime(msg.created_at)}</div>
+        </div>
+
+        <div className="bubble-text">{msg.message}</div>
+
+        {isSentByMe && (
+          <div className="bubble-status">
+            {msg.temp ? 'Sending…' : (msg.delivery_status || 'Delivered')}
+          </div>
+        )}
+      </div>
+
+      {isSentByMe && (
+        <div className="bubble-avatar sent-avatar" title={currentUserName || 'You'}>
+          {initialsFromName(currentUserName)}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContact = null }) => {
+  const [messageContent, setMessageContent] = useState('');
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
+  const [selectedStudentForTeacher, setSelectedStudentForTeacher] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const textareaRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  // ---------------------------
+  // Helper: build recipient options and dedupe / merge students
+  // ---------------------------
+  const getRecipientOptions = () => {
+    const raw = [];
+    if (isTeacher) {
+      // Teacher view: build list of parents from students
+      raw.push({ id: 'all', name: 'All Parents of My Students', type: 'group' });
+      (contacts || []).forEach(student => {
+        (student.parents || []).forEach(parent => {
+          raw.push({
+            id: parent.parentId ?? parent.id,
+            name: parent.parentName ?? parent.name,
+            type: 'parent',
+            studentId: student.studentId ?? student.id,
+            studentName: student.studentName ?? student.name
+          });
+        });
+      });
+    } else {
+      // Parent view: build list of teachers from each child
+      (contacts || []).forEach(child => {
+        (child.teachers || []).forEach(teacher => {
+          raw.push({
+            id: teacher.teacherId ?? teacher.id,
+            name: teacher.teacherName ?? teacher.name,
+            type: 'teacher',
+            studentId: child.studentId ?? child.id,
+            studentName: child.studentName ?? child.name
+          });
+        });
+      });
     }
 
-        return (
-            <div className="message-composer mobile-view contacts-view">
-                <div className="mobile-header">
-                    <h3>{isTeacher ? 'Messages' : 'Messages'}</h3>
-                </div>
-                
-                <div className="mobile-recipient-selection">
-                    <label>Select Contact</label>
-                    <select 
-                        onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '' || value === 'all') {
-                                const option = value === 'all' ? 
-                                    {id: 'all', name: 'All Parents of My Students', type: 'group'} : 
-                                    null;
-                                handleContactSelect(option);
-                            } else {
-                                const [type, id, studentIdStr] = value.split('-');
-                                const studentId = studentIdStr ? parseInt(studentIdStr) : null;
-                                const option = getRecipientOptions().find(opt => 
-                                    opt.id == id && opt.type === type && (opt.studentId === studentId || !opt.studentId)
-                                );
-                                handleContactSelect(option);
-                            }
-                        }} 
-                        value={selectedRecipient ? (selectedRecipient.id === 'all' ? 'all' : `${selectedRecipient.type}-${selectedRecipient.id}-${selectedRecipient.studentId || ''}`) : ''}
-                    >
-                        <option value="">-- Select Contact --</option>
-                        {getRecipientOptions().map(option => (
-                            <option 
-                                key={`${option.type}-${option.id}-${option.studentId || ''}`}
-                                value={option.id === 'all' ? 'all' : `${option.type}-${option.id}-${option.studentId || ''}`}
-                            >
-                                {option.name} {option.subName && `(${option.subName})`}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                
-                <div className="mobile-contacts-list">
-                    {getRecipientOptions().map(option => (
-                        <div
-                            key={`${option.type}-${option.id}-${option.studentId || ''}`}
-                            className="mobile-contact-item"
-                            onClick={() => handleContactSelect(option)}
-                        >
-                            <div className="mobile-contact-avatar">
-                                {option.id === 'all' ? '👥' : getInitials(option.name)}
-                            </div>
-                            <div className="mobile-contact-info">
-                                <div className="mobile-contact-name">
-                                    {option.id === 'all' ? 'All Parents' : option.name}
-                                </div>
-                                <div className="mobile-contact-role">
-                                    {option.id === 'all' ? 'Send message to all parents' : option.subName}
-                                </div>
-                            </div>
-                            <div className="mobile-contact-arrow">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="9,18 15,12 9,6"></polyline>
-                                </svg>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
+    // Dedupe by type+id and merge student names into `students` array
+    const map = new Map();
+    raw.forEach(item => {
+      if (item.id === 'all') {
+        map.set('all', { ...item });
+        return;
+      }
+      const key = `${item.type}-${item.id}`;
+      if (!map.has(key)) {
+        map.set(key, { ...item, students: item.studentName ? [item.studentName] : [] });
+      } else {
+        const existing = map.get(key);
+        if (item.studentName && !existing.students.includes(item.studentName)) {
+          existing.students.push(item.studentName);
+        }
+      }
+    });
+
+    // Build final options: put students and subName
+    const options = Array.from(map.values()).map(it => {
+      if (it.id === 'all') return it;
+      return {
+        ...it,
+        subName: it.students && it.students.length ? `Parent of ${it.students.join(', ')}` : (it.subName || ''),
+        students: it.students || []
+      };
+    });
+
+    return options;
+  };
+
+  const optionKey = (opt) => opt.id === 'all' ? 'all' : `${opt.type}-${opt.id}-${opt.studentId || ''}`;
+
+  // ---------------------------
+  // Fetch messages and enrich each message with `students` info where possible
+  // ---------------------------
+  const fetchMessages = async (otherUserId = null, studentId = null, studentsForRecipient = null) => {
+    setLoading(true);
+    setError(null);
+    try {
+      let url = `/messages`;
+      const queryParams = [];
+      if (otherUserId) queryParams.push(`otherUserId=${otherUserId}`);
+      if (studentId) queryParams.push(`studentId=${studentId}`);
+      if (queryParams.length) url += `?${queryParams.join('&')}`;
+
+      const response = await api.get(url);
+      if (response.data?.status === 'success') {
+        const sorted = (response.data.messages || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+        // Enrich each message with students array:
+        const enriched = sorted.map(m => {
+          // if server already included a students array, keep it
+          if (m.students && Array.isArray(m.students)) return m;
+          // if message has a student_name field, use it as single-element array
+          if (m.student_name) return { ...m, students: [m.student_name] };
+          // fallback to the studentsForRecipient (e.g., the selected contact who may have multiple kids)
+          if (studentsForRecipient && studentsForRecipient.length) return { ...m, students: studentsForRecipient };
+          return m;
+        });
+
+        setMessages(enriched);
+        setTimeout(() => scrollToBottom(false), 40);
+      } else {
+        setError(response.data?.message || 'Failed to fetch messages');
+      }
+    } catch (err) {
+      console.error('fetchMessages error', err);
+      setError('Unable to load messages. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---------------------------
+  // Initial load + respond to contacts / selection changes
+  // ---------------------------
+  useEffect(() => {
+    // initial messages (no filter)
+    fetchMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, contacts]);
+
+  useEffect(() => {
+    // auto-select initialContact if provided once
+    if (initialContact) {
+      // initialContact expected to be { teacherId, teacherName, studentId, studentName } for parent,
+      // or { id, name, students: [...] } shape if already normalized.
+      // We'll try to find a matching option from recipientOptions and select it.
+      const options = getRecipientOptions();
+      // Find by teacher id or parent id
+      let found = null;
+      if (initialContact.teacherId) {
+        found = options.find(o => o.type === 'teacher' && String(o.id) === String(initialContact.teacherId));
+      }
+      if (!found && initialContact.id) {
+        found = options.find(o => String(o.id) === String(initialContact.id));
+      }
+      if (found) {
+        setSelectedRecipient(found);
+        setSelectedStudentForTeacher(initialContact.studentId || found.studentId || null);
+        // fetch messages for that recipient
+        fetchMessages(found.id !== 'all' ? found.id : null, initialContact.studentId || null, found.students || null);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialContact]);
+
+  useEffect(() => {
+    if (selectedRecipient) {
+      const otherUserId = selectedRecipient.id === 'all' ? null : selectedRecipient.id;
+      fetchMessages(otherUserId, selectedStudentForTeacher, selectedRecipient.students || null);
+    } else {
+      fetchMessages();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRecipient, selectedStudentForTeacher]);
+
+  // auto scroll on messages change
+  useEffect(() => {
+    scrollToBottom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  // ---------------------------
+  // scrolling helper
+  // ---------------------------
+  const scrollToBottom = (smooth = true) => {
+    if (messagesEndRef.current) {
+      try {
+        messagesEndRef.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
+      } catch {
+        messagesEndRef.current.scrollIntoView();
+      }
+    }
+  };
+
+  // ---------------------------
+  // textarea autosize
+  // ---------------------------
+  const handleTextareaChange = (e) => {
+    setMessageContent(e.target.value);
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    const max = 160;
+    textarea.style.height = Math.min(textarea.scrollHeight, max) + 'px';
+  };
+
+  // ---------------------------
+  // Sending messages (optimistic)
+  // ---------------------------
+  const handleSendMessage = async () => {
+    const trimmed = messageContent.trim();
+    if (!trimmed) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const tempMessage = {
+      id: tempId,
+      sender_id: user.userId || user.id,
+      sender_name: user.name || 'You',
+      message: trimmed,
+      created_at: new Date().toISOString(),
+      temp: true,
+      // ensure students array present for optimistic bubble (use recipient's students if available)
+      students: selectedRecipient?.students && selectedRecipient.students.length ? selectedRecipient.students : (selectedStudentForTeacher ? [selectedStudentForTeacher] : [])
     };
 
-    return isMobileView ? renderMobileView() : renderDesktopView();
+    // optimistic UI
+    setMessages(prev => [...prev, tempMessage]);
+    setMessageContent('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    setLoading(true);
+    setError(null);
+
+    try {
+      let payload = { messageContent: trimmed };
+      let endpoint = '/messages/parent/send-to-teacher';
+
+      if (isTeacher) {
+        if (selectedRecipient && selectedRecipient.type === 'parent') {
+          endpoint = '/messages/teacher/send-to-parent';
+          payload.studentId = selectedStudentForTeacher;
+          payload.parentId = selectedRecipient.id;
+        } else if (selectedStudentForTeacher) {
+          endpoint = '/messages/teacher/send-to-all-parents';
+          payload.studentId = selectedStudentForTeacher;
+        } else {
+          endpoint = '/messages/teacher/send-to-all-parents';
+        }
+      } else {
+        if (!selectedRecipient || selectedRecipient.type !== 'teacher') {
+          setError('Please select a teacher to send a message to.');
+          setMessages(prev => prev.filter(m => m.id !== tempId));
+          setLoading(false);
+          return;
+        }
+        endpoint = '/messages/parent/send-to-teacher';
+        payload.teacherId = selectedRecipient.id;
+        if (selectedStudentForTeacher) payload.studentId = selectedStudentForTeacher;
+      }
+
+      const response = await api.post(endpoint, payload);
+      if (response.data?.status === 'success') {
+        // refetch messages for the currently selected recipient and include students array for enrichment
+        const fetchOtherUserId = (selectedRecipient && selectedRecipient.id !== 'all') ? selectedRecipient.id : null;
+        fetchMessages(fetchOtherUserId, selectedStudentForTeacher, selectedRecipient?.students || null);
+      } else {
+        setError(response.data?.message || 'Failed to send message');
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      }
+    } catch (err) {
+      console.error('send message error', err);
+      setError(err?.response?.data?.message || 'Failed to send message. Please try again.');
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Enter to send, Shift+Enter newline
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // ---------------------------
+  // Contact select handlers
+  // ---------------------------
+  const recipientOptions = getRecipientOptions();
+
+  const findOptionByKey = (key) => recipientOptions.find(o => optionKey(o) === key);
+
+  const handleContactSelect = (option) => {
+    if (!option) {
+      setSelectedRecipient(null);
+      setSelectedStudentForTeacher(null);
+    } else {
+      setSelectedRecipient(option);
+      // if a parent option was selected in teacher view, set the selected studentId if present
+      if (isTeacher && option.type === 'parent') {
+        // prefer the first student for per-parent-per-student view; but option.students keeps all names for display
+        setSelectedStudentForTeacher(option.studentId || null);
+      } else if (!isTeacher && option.type === 'teacher') {
+        setSelectedStudentForTeacher(option.studentId || null);
+      } else if (option.id === 'all') {
+        setSelectedStudentForTeacher(null);
+      }
+    }
+  };
+
+  // ---------------------------
+  // Rendering
+  // ---------------------------
+  const renderMessages = () => {
+    if (loading && messages.length === 0) {
+      return <div className="loading-row">Loading messages…</div>;
+    }
+    if (error && messages.length === 0) {
+      return <div className="error-row">{error}</div>;
+    }
+    if (!messages || messages.length === 0) {
+      return (
+        <div className="empty-row">
+          <div className="empty-emoji">💬</div>
+          <div className="empty-title">No messages yet</div>
+          <div className="empty-sub">Start the conversation</div>
+        </div>
+      );
+    }
+
+    return messages.map((msg, idx) => {
+      const isSentByCurrentUser = (msg.sender_id === (user.userId || user.id));
+      // ensure msg.students exists (fallback to selectedRecipient students if available)
+      const studentsArr = (msg.students && Array.isArray(msg.students) && msg.students.length) ? msg.students :
+                          (selectedRecipient && selectedRecipient.students && selectedRecipient.students.length ? selectedRecipient.students : (msg.student_name ? [msg.student_name] : []));
+
+      const enriched = { ...msg, students: studentsArr };
+
+      return (
+        <MessageBubble
+          key={enriched.id || `${idx}-${enriched.created_at}`}
+          msg={enriched}
+          isSentByMe={isSentByCurrentUser}
+          currentUserName={user.name}
+        />
+      );
+    });
+  };
+
+  return (
+    <div className="mc-container">
+      <div className="mc-sidebar" aria-hidden={false}>
+        <div className="mc-recipient-select">
+          <label>Select Contact</label>
+          <select
+            value={selectedRecipient ? optionKey(selectedRecipient) : ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) { handleContactSelect(null); return; }
+              if (val === 'all') {
+                handleContactSelect({ id: 'all', name: 'All Parents of My Students', type: 'group', students: [] });
+                return;
+              }
+              const found = findOptionByKey(val);
+              if (found) handleContactSelect(found);
+            }}
+          >
+            <option value="">-- Select Contact --</option>
+            {recipientOptions.map(opt => (
+              <option key={optionKey(opt)} value={optionKey(opt)}>
+                {opt.name}{opt.subName ? ` (${opt.subName})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mc-contacts">
+          {recipientOptions.map(opt => (
+            <button
+              key={optionKey(opt)}
+              type="button"
+              className={`contact-row ${selectedRecipient && (selectedRecipient.id === opt.id && selectedRecipient.type === opt.type) ? 'active' : ''}`}
+              onClick={() => handleContactSelect(opt)}
+            >
+              <div className="contact-avatar">{opt.id === 'all' ? '👥' : initialsFromName(opt.name)}</div>
+              <div className="contact-info">
+                <div className="contact-name">{opt.id === 'all' ? 'All Parents' : opt.name}</div>
+                <div className="contact-sub">{opt.id === 'all' ? 'Broadcast' : opt.subName}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mc-main">
+        <div className="mc-header">
+          <h3>{isTeacher ? 'Teacher Messages' : 'Messages'}</h3>
+          <div className="header-sub">{selectedRecipient ? (selectedRecipient.id === 'all' ? 'Broadcast' : selectedRecipient.name) : 'Select a contact'}</div>
+        </div>
+
+        <div className="mc-divider" aria-hidden="true" />
+
+        <div className="mc-message-list" role="log" aria-live="polite">
+          {renderMessages()}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <div className="mc-composer">
+          {error && <div className="composer-error">{error}</div>}
+          <div className="composer-row">
+            <textarea
+              aria-label="Message input"
+              ref={textareaRef}
+              className="composer-textarea"
+              placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
+              value={messageContent}
+              onChange={handleTextareaChange}
+              onKeyDown={handleKeyDown}
+              rows={1}
+            />
+            <button
+              className="composer-send"
+              type="button"
+              onClick={handleSendMessage}
+              disabled={loading || !messageContent.trim()}
+              aria-label="Send message"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="3,11 22,2 13,21 11,13 3,11"></polygon>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default MessageComposer;

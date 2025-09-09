@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+// ParentDashboard.js
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../api';
 import ParentExamResultsModal from './ParentExamResultsModal';
 import ParentDailyReportsModal from './ParentDailyReportsModal';
-import MessageComposer from './MessageComposer'; // New import
+import MessageComposer from './MessageComposer';
 
 const ParentDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -15,7 +16,13 @@ const ParentDashboard = ({ user }) => {
   const [dailyModal, setDailyModal] = useState({ open: false, student: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [parentContacts, setParentContacts] = useState([]); // New state for parent contacts
+
+  // parentContacts structure: array of children, each child:
+  // { studentId, studentName, teachers: [{ teacherId, teacherName, studentId, studentName }] }
+  const [parentContacts, setParentContacts] = useState([]);
+
+  // optional: store an initial contact to let MessageComposer open conversation immediately
+  const initialContactRef = useRef(null);
 
   useEffect(() => {
     if (activeTab === 'children') {
@@ -23,7 +30,7 @@ const ParentDashboard = ({ user }) => {
     }
     if (activeTab === 'messages') {
       fetchMyMessages();
-      fetchParentContacts(); // Fetch parent contacts when message tab is active
+      fetchParentContacts();
     }
     if (activeTab === 'schedule') {
       fetchAnnouncementsAndActivities();
@@ -34,19 +41,22 @@ const ParentDashboard = ({ user }) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Use the parent's phone number to get their children
       const { data } = await api.get(`/students/parent/${encodeURIComponent(user.phone)}`);
-      
-      if (data.success) {
-        setStudents(data.students);
+
+      if (data && data.success) {
+        setStudents(data.students || []);
         // fetch exams per child
         const results = {};
-        for (const s of data.students) {
+        for (const s of data.students || []) {
           try {
             const r = await api.get(`/exams/${s.id}`);
             results[s.id] = r.data.results || [];
-          } catch {}
+          } catch (err) {
+            // ignore single child exam fetch errors
+            results[s.id] = results[s.id] || [];
+          }
         }
         setExamResults(results);
       } else {
@@ -65,7 +75,7 @@ const ParentDashboard = ({ user }) => {
       setLoading(true);
       // Use the new common messages API endpoint
       const { data } = await api.get(`/messages?otherUserId=${user.id}`);
-      if (data.status === 'success') setMessages(data.messages);
+      if (data && data.status === 'success') setMessages(data.messages || []);
     } catch (err) {
       console.error('Error fetching messages:', err);
     } finally {
@@ -73,14 +83,59 @@ const ParentDashboard = ({ user }) => {
     }
   };
 
+  /**
+   * Fetch parent contacts and normalize shape to match MessageComposer expectations.
+   *
+   * Expectation for MessageComposer when user is a parent:
+   *  contacts = [
+   *    {
+   *      studentId,
+   *      studentName,
+   *      teachers: [
+   *        { teacherId, teacherName, studentId, studentName }
+   *      ]
+   *    }, ...
+   *  ]
+   *
+   * This function is defensive: it handles different possible shapes from the backend.
+   */
   const fetchParentContacts = async () => {
     try {
       const { data } = await api.get('/messages/parent/contacts');
-      if (data.status === 'success') {
-        setParentContacts(data.children || []);
+      if (data && data.status === 'success') {
+        const rawChildren = data.children || data.students || [];
+
+        const normalized = (rawChildren || []).map(child => {
+          const studentId = child.id ?? child.studentId ?? child.student_id;
+          const studentName = child.name ?? child.studentName ?? child.student_name ?? child.student_name_display;
+          // Teachers array could be named `teachers` or `mapped_teachers` etc.
+          const rawTeachers = child.teachers || child.mappedTeachers || child.mapped_teachers || child.teacher_list || [];
+
+          const teachers = (rawTeachers || []).map(t => {
+            const teacherId = t.teacherId ?? t.id ?? t.teacher_id ?? t.userId;
+            const teacherName = t.teacherName ?? t.name ?? t.full_name ?? t.teacher_name;
+            return {
+              teacherId,
+              teacherName,
+              studentId,
+              studentName
+            };
+          });
+
+          return {
+            studentId,
+            studentName,
+            teachers
+          };
+        });
+
+        setParentContacts(normalized);
+      } else {
+        setParentContacts([]);
       }
     } catch (err) {
       console.error('Error fetching parent contacts:', err);
+      setParentContacts([]);
     }
   };
 
@@ -91,13 +146,29 @@ const ParentDashboard = ({ user }) => {
         api.get('/announcements'),
         api.get('/activities')
       ]);
-      if (ann.data.success) setAnnouncements(ann.data.announcements);
-      if (act.data.success) setActivities(act.data.activities);
+      if (ann.data && ann.data.success) setAnnouncements(ann.data.announcements || []);
+      if (act.data && act.data.success) setActivities(act.data.activities || []);
     } catch (err) {
       console.error('Error fetching schedule data:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper to open Message tab and optionally instruct MessageComposer to pre-select a contact
+  // Note: MessageComposer needs to accept an initialContact prop to auto-select (see comment).
+  const openMessageFor = (teacher, student) => {
+    // Save the initial contact to a ref so we can pass it into MessageComposer.
+    // Format is what our MessageComposer expects for a parent: child objects with teacher entries
+    initialContactRef.current = {
+      studentId: student.studentId || student.id,
+      studentName: student.studentName || student.name,
+      teacherId: teacher.teacherId || teacher.id,
+      teacherName: teacher.teacherName || teacher.name
+    };
+
+    // Switch to messages tab
+    setActiveTab('messages');
   };
 
   return (
@@ -168,7 +239,7 @@ const ParentDashboard = ({ user }) => {
               <h3>My Children</h3>
               <span className="info-text">Phone: {user.phone}</span>
             </div>
-            
+
             {loading && <p>Loading children data...</p>}
             {error && (
               <div>
@@ -176,7 +247,7 @@ const ParentDashboard = ({ user }) => {
                 <button onClick={fetchMyChildren}>Retry</button>
               </div>
             )}
-            
+
             <div className="students-grid">
               {students.length > 0 ? (
                 students.map(student => (
@@ -194,7 +265,21 @@ const ParentDashboard = ({ user }) => {
                     <div className="student-actions">
                       <button className="action-btn" onClick={() => setExamModal({ open: true, student })}>📊 Performance</button>
                       <button className="action-btn" onClick={() => setDailyModal({ open: true, student })}>📄 Reports</button>
-                      <button className="action-btn">💬 Message Teacher</button>
+
+                      {/* Message Teacher - if teachers are included in student object, we let parent pick one.
+                          On click we open Messages tab and optionally pre-select the teacher and student.
+                          The actual auto-select behavior requires MessageComposer to accept an initialContact prop.
+                          If you don't want auto-select, keep this button simple by removing openMessageFor call. */}
+                      <button
+                        className="action-btn"
+                        onClick={() => {
+                          // prepare to open messages and pre-select the first teacher if there is one
+                          const teacher = (student.teachers && student.teachers[0]) || { teacherId: student.teacher_id || student.teacherId, teacherName: student.teacher_name || student.teacherName };
+                          openMessageFor(teacher, { studentId: student.id, studentName: student.name });
+                        }}
+                      >
+                        💬 Message Teacher
+                      </button>
                     </div>
                   </div>
                 ))
@@ -212,10 +297,13 @@ const ParentDashboard = ({ user }) => {
 
         {activeTab === 'messages' && (
           <div className="messages-section">
-            <MessageComposer 
-              user={user} 
-              contacts={parentContacts} 
-              isTeacher={false} 
+            {/* Pass parentContacts in normalized shape */}
+            <MessageComposer
+              user={user}
+              contacts={parentContacts}
+              isTeacher={false}
+              // Optional: pass initialContact if you want MessageComposer to pre-select a conversation
+              initialContact={initialContactRef.current}
             />
           </div>
         )}
@@ -246,6 +334,7 @@ const ParentDashboard = ({ user }) => {
           </div>
         )}
       </div>
+
       <ParentExamResultsModal
         isOpen={examModal.open}
         onClose={() => setExamModal({ open: false, student: null })}

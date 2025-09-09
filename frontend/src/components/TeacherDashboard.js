@@ -20,7 +20,7 @@ const TeacherDashboard = ({ user }) => {
         const total = studentsRes.data?.students?.length || 0;
         const messages = msgsRes.data?.messages?.length || 0; // Assuming this count is for unread messages or total messages
         setOverview({ total, presentToday: 0, messages, tests: 0 });
-        setTeacherContacts(contactsRes.data?.students || []);
+        setTeacherContacts(contactsRes.data?.students || contactsRes.data?.contacts || []);
       } catch (e) {
         console.error("Error loading teacher dashboard data:", e);
       }
