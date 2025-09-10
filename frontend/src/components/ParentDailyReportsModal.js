@@ -27,6 +27,7 @@ const ParentDailyReportsModal = ({ isOpen, onClose, student }) => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [markedDates, setMarkedDates] = useState([]);
 
+  // Keep track of dates that have notes
   const dateHasNote = useMemo(() => markedDates.includes(selectedDate), [markedDates, selectedDate]);
 
   useEffect(() => {
@@ -100,9 +101,20 @@ const ParentDailyReportsModal = ({ isOpen, onClose, student }) => {
                 </div>
 
                 <div>
-                  <span style={{ fontSize: 12, background: '#eef2ff', color: '#3730a3', padding: '6px 12px', borderRadius: 9999 }}>
-                    Selected Date: {labelFromYMD(selectedDate)}
+                  <span style={{ 
+                    fontSize: 12, 
+                    background: dateHasNote ? '#dcfce7' : '#eef2ff', 
+                    color: dateHasNote ? '#166534' : '#3730a3', 
+                    padding: '6px 12px', 
+                    borderRadius: 9999 
+                  }}>
+                    Selected Date: {labelFromYMD(selectedDate)} {dateHasNote && '(Has Notes)'}
                   </span>
+                  {reports.length > 0 && (
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                      Total reports: {reports.length}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gap: 10 }}>

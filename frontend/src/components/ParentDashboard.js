@@ -9,7 +9,7 @@ import AnnouncementsView from './AnnouncementsView';
 const ParentDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [students, setStudents] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([]); // Used for message count in future features
   const [announcements, setAnnouncements] = useState([]);
   const [activities, setActivities] = useState([]);
   const [examResults, setExamResults] = useState({});
@@ -39,6 +39,7 @@ const ParentDashboard = ({ user }) => {
     if (activeTab === 'announcements') {
       // No need to fetch announcements here, AnnouncementsView component will do it
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, user]);
 
   const fetchMyChildren = async () => {
@@ -199,7 +200,7 @@ const ParentDashboard = ({ user }) => {
           className={`tab ${activeTab === 'messages' ? 'active' : ''}`}
           onClick={() => setActiveTab('messages')}
         >
-          💬 Messages
+          💬 Messages {messages.length > 0 && `(${messages.length})`}
         </button>
         <button 
           className={`tab ${activeTab === 'schedule' ? 'active' : ''}`}

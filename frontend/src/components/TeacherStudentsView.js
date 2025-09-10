@@ -46,11 +46,6 @@ const TeacherStudentsView = ({ teacher, onBack, isAdmin = false }) => {
     setPerfStudent(student);
   };
 
-  const handleEditStudent = (student) => {
-    // Placeholder for edit student functionality (for admin)
-    alert(`Edit ${student.name} - Feature coming soon!`);
-  };
-
   return (
     <>
     <div className="teacher-students-view">

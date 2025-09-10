@@ -64,7 +64,6 @@ const CommentsBox = ({ studentId, examType }) => {
 
 const TeacherExamsTab = ({ teacherName }) => {
   const [students, setStudents] = useState([]);
-  const [subjectsByStudent, setSubjectsByStudent] = useState({});
   const [existingByStudent, setExistingByStudent] = useState({});
   const [loading, setLoading] = useState(false);
 
@@ -116,10 +115,6 @@ const TeacherExamsTab = ({ teacherName }) => {
     const r = await api.get(`/exams/${studentId}`);
     setExistingByStudent(prev => ({ ...prev, [studentId]: r.data.results || [] }));
     closeModal();
-  };
-
-  const handleUpdate = async (id, patch) => {
-    await api.put(`/exams/${id}`, patch);
   };
 
   const handleDelete = async (id, studentId) => {
