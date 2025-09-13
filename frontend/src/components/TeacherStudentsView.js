@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api';
-import TeacherDailyReportModal from './TeacherDailyReportModal';
+import StudentReportsModal from './StudentReportsModal';
 import StudentPerformanceModal from './StudentPerformanceModal';
 import './TeacherStudentsView.css';
 
@@ -117,11 +117,11 @@ const TeacherStudentsView = ({ teacher, onBack, isAdmin = false }) => {
         </div>
       </div>
     </div>
-    <TeacherDailyReportModal
+    <StudentReportsModal
       isOpen={!!reportStudent}
       student={reportStudent}
       onClose={() => setReportStudent(null)}
-      onSaved={() => setReportStudent(null)}
+      isTeacher={true}
     />
     <StudentPerformanceModal
       isOpen={!!perfStudent}

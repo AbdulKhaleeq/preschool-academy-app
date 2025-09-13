@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../api';
-import { Button, Badge } from './ui';
+import { Card, Button, Badge } from './ui';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   PaperAirplaneIcon, 
@@ -8,12 +8,14 @@ import {
   UserGroupIcon,
   MagnifyingGlassIcon,
   ArrowLeftIcon,
-  ChatBubbleLeftRightIcon
+  PhoneIcon,
+  VideoCameraIcon,
+  EllipsisVerticalIcon
 } from '@heroicons/react/24/outline';
-import { CheckIcon } from '@heroicons/react/20/solid';
+import { CheckIcon, CheckCheckIcon } from '@heroicons/react/20/solid';
 import toast from 'react-hot-toast';
 
-const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContact = null }) => {
+const MessageComposerModern = ({ user, contacts = [], isTeacher = false, initialContact = null }) => {
   const [messageContent, setMessageContent] = useState('');
   const [selectedRecipient, setSelectedRecipient] = useState(null);
   const [selectedStudentForTeacher, setSelectedStudentForTeacher] = useState(null);
@@ -25,15 +27,6 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
 
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
-
-  // Check if mobile
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useEffect(() => {
     if (initialContact) {
@@ -49,6 +42,34 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const formatTime = (iso) => {
+    try {
+      const date = new Date(iso);
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      
+      if (isToday) {
+        return date.toLocaleTimeString(undefined, {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } else {
+        return date.toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+    } catch {
+      return '';
+    }
+  };
+
+  const getInitials = (name) => {
+    return (name || '').split(' ').map(n => n[0] || '').slice(0, 2).join('').toUpperCase();
   };
 
   const getRecipientOptions = () => {
@@ -99,27 +120,8 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     setLoading(true);
     try {
       const { data } = await api.get(`/messages?otherUserId=${recipient.id}`);
-      console.log('Fetched messages:', data); // Debug log
-      
       if (data && data.status === 'success') {
-        // Ensure proper message structure
-        const messages = (data.messages || []).map(msg => ({
-          ...msg,
-          id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          message: msg.message || msg.content || msg.messageContent || '',
-          sender_id: msg.sender_id || msg.senderId,
-          created_at: msg.created_at || msg.createdAt || new Date().toISOString()
-        }));
-        
-        // Sort messages by creation date (oldest first, newest last)
-        const sortedMessages = messages.sort((a, b) => {
-          const dateA = new Date(a.created_at);
-          const dateB = new Date(b.created_at);
-          return dateA - dateB; // Ascending order: oldest to newest
-        });
-        
-        console.log('Processed and sorted messages:', sortedMessages); // Debug log
-        setMessages(sortedMessages);
+        setMessages(data.messages || []);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -131,7 +133,7 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
 
   const handleRecipientSelect = (recipient) => {
     setSelectedRecipient(recipient);
-    if (isMobile) setShowContactsList(false);
+    setShowContactsList(false);
     fetchMessagesForRecipient(recipient);
     setSelectedStudentForTeacher(null);
     setSearchQuery('');
@@ -148,7 +150,7 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     if (!messageContent.trim() || !selectedRecipient) return;
 
     const tempMessage = {
-      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `temp-${Date.now()}`,
       message: messageContent,
       sender_id: user.id,
       sender_name: user.name || 'You',
@@ -164,74 +166,20 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     setMessageContent('');
 
     try {
-      let endpoint, payload;
-      
-      if (isTeacher) {
-        if (selectedRecipient.id === 'all') {
-          // Teacher sending to all parents
-          endpoint = '/messages/teacher/send-to-all-parents';
-          payload = {
-            messageContent: messageText,
-            studentId: selectedStudentForTeacher?.studentId
-          };
-        } else {
-          // Teacher sending to specific parent
-          endpoint = '/messages/teacher/send-to-parent';
-          payload = {
-            parentId: selectedRecipient.id,
-            messageContent: messageText,
-            studentId: selectedRecipient.studentId
-          };
-        }
-      } else {
-        // Parent sending to teacher
-        endpoint = '/messages/parent/send-to-teacher';
-        payload = {
-          teacherId: selectedRecipient.id,
-          messageContent: messageText,
-          studentId: selectedRecipient.studentId
-        };
-      }
+      const payload = {
+        recipient_id: selectedRecipient.id,
+        message: messageText,
+        student_id: selectedStudentForTeacher?.studentId || selectedRecipient.studentId
+      };
 
-      const { data } = await api.post(endpoint, payload);
-      console.log('API Response:', data); // Debug log
-      
-      // Remove the temporary message
-      setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
-      
-      // Create successful message with proper structure
-      let successMessage;
-      
-      if (data && data.message) {
-        // Use API response message if available
-        successMessage = {
-          ...data.message,
-          id: data.message.id || `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          message: data.message.message || messageText,
-          sender_id: user.id,
-          sender_name: user.name || 'You',
-          created_at: data.message.created_at || new Date().toISOString(),
-          student_name: selectedStudentForTeacher?.studentName || selectedRecipient.studentName
-        };
+      const { data } = await api.post('/messages', payload);
+      if (data && data.status === 'success') {
+        setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
+        setMessages(prev => [...prev, data.message]);
+        toast.success('Message sent!');
       } else {
-        // Fallback message structure
-        successMessage = {
-          id: `sent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          message: messageText, // This is the actual message content
-          sender_id: user.id,
-          sender_name: user.name || 'You',
-          recipient_id: selectedRecipient.id,
-          recipient_name: selectedRecipient.name,
-          created_at: new Date().toISOString(),
-          student_name: selectedStudentForTeacher?.studentName || selectedRecipient.studentName,
-          temp: false
-        };
+        throw new Error('Failed to send message');
       }
-      
-      console.log('Success Message:', successMessage); // Debug log
-      
-      setMessages(prev => [...prev, successMessage]);
-      toast.success('Message sent successfully!');
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
@@ -252,13 +200,11 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     textareaRef.current?.focus();
   };
 
-  const getInitials = (name) => {
-    return name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
-  };
-
   const commonEmojis = ['😊', '😂', '❤️', '👍', '👎', '🙏', '💯', '🔥', '⭐', '🎉'];
 
   // Mobile view - show either contacts list or chat
+  const isMobile = window.innerWidth < 768;
+
   if (isMobile && !showContactsList && selectedRecipient) {
     return (
       <div className="flex flex-col h-full bg-white dark:bg-gray-900">
@@ -287,6 +233,18 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
               </div>
             </div>
           </div>
+          
+          <div className="flex items-center space-x-2">
+            <button className="p-2 rounded-full hover:bg-primary-700 transition-colors">
+              <PhoneIcon className="w-5 h-5" />
+            </button>
+            <button className="p-2 rounded-full hover:bg-primary-700 transition-colors">
+              <VideoCameraIcon className="w-5 h-5" />
+            </button>
+            <button className="p-2 rounded-full hover:bg-primary-700 transition-colors">
+              <EllipsisVerticalIcon className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Messages */}
@@ -301,9 +259,9 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
             </div>
           ) : (
             <AnimatePresence>
-              {messages.map((message, index) => (
+              {messages.map((message) => (
                 <ModernMessageBubble
-                  key={message.id || `message-${index}-${message.created_at || Date.now()}`}
+                  key={message.id}
                   message={message}
                   currentUser={user}
                   isOwnMessage={message.sender_id === user.id}
@@ -346,7 +304,7 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
                   <div className="grid grid-cols-5 gap-2">
                     {commonEmojis.map((emoji, index) => (
                       <button
-                        key={`emoji-${emoji}-${index}`}
+                        key={index}
                         type="button"
                         onClick={() => addEmoji(emoji)}
                         className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-lg"
@@ -487,6 +445,18 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
                       )}
                     </div>
                   </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-400">
+                      <PhoneIcon className="w-5 h-5" />
+                    </button>
+                    <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-400">
+                      <VideoCameraIcon className="w-5 h-5" />
+                    </button>
+                    <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-400">
+                      <EllipsisVerticalIcon className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -502,9 +472,9 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
                   </div>
                 ) : (
                   <AnimatePresence>
-                    {messages.map((message, index) => (
+                    {messages.map((message) => (
                       <ModernMessageBubble
-                        key={message.id || `desktop-message-${index}-${message.created_at || Date.now()}`}
+                        key={message.id}
                         message={message}
                         currentUser={user}
                         isOwnMessage={message.sender_id === user.id}
@@ -547,7 +517,7 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
                         <div className="grid grid-cols-5 gap-2">
                           {commonEmojis.map((emoji, index) => (
                             <button
-                              key={`desktop-emoji-${emoji}-${index}`}
+                              key={index}
                               type="button"
                               onClick={() => addEmoji(emoji)}
                               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-lg"
@@ -595,41 +565,18 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
 const ModernMessageBubble = ({ message, currentUser, isOwnMessage }) => {
   const formatTime = (iso) => {
     try {
-      // Handle invalid or missing dates
-      if (!iso) return new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-      
       const date = new Date(iso);
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        return new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-      }
-      
       return date.toLocaleTimeString(undefined, {
         hour: '2-digit',
         minute: '2-digit'
       });
-    } catch (error) {
-      console.warn('Date formatting error:', error);
-      return new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
     }
   };
 
   const studentLabel = message.students && message.students.length ? message.students.join(', ')
                        : message.student_name || '';
-
-  // Get message content - handle different field names
-  const messageContent = message.message || message.content || message.messageContent || '';
-  
-  // Debug log
-  console.log('Message object:', message);
-  console.log('Message content:', messageContent);
-  console.log('Is own message:', isOwnMessage);
-
-  // Don't render if no message content
-  if (!messageContent && !message.temp) {
-    console.warn('No message content found:', message);
-    return null;
-  }
 
   return (
     <motion.div
@@ -640,7 +587,7 @@ const ModernMessageBubble = ({ message, currentUser, isOwnMessage }) => {
     >
       <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl relative ${
         isOwnMessage
-          ? 'bg-primary-600 text-white'
+          ? 'bg-primary-600 text-white ml-auto'
           : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm border border-gray-200 dark:border-gray-600'
       } ${message.temp ? 'opacity-70' : ''}`}>
         
@@ -651,7 +598,7 @@ const ModernMessageBubble = ({ message, currentUser, isOwnMessage }) => {
         )}
         
         <div className="text-sm leading-relaxed mb-1">
-          {message.temp ? 'Sending...' : messageContent}
+          {message.message}
         </div>
         
         <div className={`flex items-center justify-end space-x-1 text-xs ${
@@ -663,10 +610,7 @@ const ModernMessageBubble = ({ message, currentUser, isOwnMessage }) => {
               {message.temp ? (
                 <div className="animate-pulse">⏳</div>
               ) : message.read ? (
-                <div className="flex">
-                  <CheckIcon className="w-3 h-3 text-blue-400 -mr-1" />
-                  <CheckIcon className="w-3 h-3 text-blue-400" />
-                </div>
+                <CheckCheckIcon className="w-3 h-3 text-blue-400" />
               ) : (
                 <CheckIcon className="w-3 h-3" />
               )}
@@ -678,4 +622,4 @@ const ModernMessageBubble = ({ message, currentUser, isOwnMessage }) => {
   );
 };
 
-export default MessageComposer;
+export default MessageComposerModern;

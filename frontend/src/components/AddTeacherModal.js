@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import api from '../api';
+import { Modal, Button, Input, Select } from './ui';
+import toast from 'react-hot-toast';
 
 const AddTeacherModal = ({ isOpen, onClose, onTeacherAdded }) => {
   const [formData, setFormData] = useState({
@@ -12,190 +14,200 @@ const AddTeacherModal = ({ isOpen, onClose, onTeacherAdded }) => {
     subject: ''
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      phone_number: '',
+      email: '',
+      class_name: '',
+      experience_years: '',
+      qualification: '',
+      subject: ''
+    });
+    setErrors({});
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = 'Name is required';
+    if (!formData.phone_number.trim()) newErrors.phone_number = 'Phone number is required';
+    if (!formData.class_name.trim()) newErrors.class_name = 'Class name is required';
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    if (formData.experience_years && (isNaN(formData.experience_years) || formData.experience_years < 0)) {
+      newErrors.experience_years = 'Please enter a valid number of years';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    if (!validateForm()) return;
 
+    setLoading(true);
     try {
-      const { data } = await api.post('/teachers', formData);
+      const submitData = {
+        ...formData,
+        experience_years: formData.experience_years ? parseInt(formData.experience_years) : 0
+      };
+
+      const { data } = await api.post('/teachers', submitData);
 
       if (data.success) {
-        // Reset form
-        setFormData({
-          name: '',
-          phone_number: '',
-          email: '',
-          class_name: '',
-          experience_years: '',
-          qualification: '',
-          subject: ''
-        });
-        onTeacherAdded(); // Refresh the teachers list
-        onClose(); // Close modal
-        alert('Teacher added successfully!');
+        toast.success('Teacher added successfully!');
+        onTeacherAdded();
+        onClose();
+        resetForm();
       } else {
-        setError(data.message || 'Failed to add teacher');
+        toast.error(data.message || 'Failed to add teacher');
       }
-    } catch (err) {
-      setError('Error connecting to server');
-      console.error('Error adding teacher:', err);
+    } catch (error) {
+      console.error('Error adding teacher:', error);
+      const message = error.response?.data?.message || 'Failed to add teacher';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  const qualificationOptions = [
+    { value: 'bachelor', label: 'Bachelor\'s Degree' },
+    { value: 'master', label: 'Master\'s Degree' },
+    { value: 'diploma', label: 'Diploma in Early Childhood Education' },
+    { value: 'certificate', label: 'Teaching Certificate' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  const subjectOptions = [
+    { value: 'general', label: 'General Education' },
+    { value: 'english', label: 'English' },
+    { value: 'math', label: 'Mathematics' },
+    { value: 'science', label: 'Science' },
+    { value: 'art', label: 'Art & Crafts' },
+    { value: 'music', label: 'Music' },
+    { value: 'physical', label: 'Physical Education' },
+    { value: 'other', label: 'Other' }
+  ];
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h3>👨‍🏫 Add New Teacher</h3>
-          <button className="close-btn" onClick={onClose} type="button">×</button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="teacher-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label>Full Name *</label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="e.g. Sarah Johnson"
-                required
-              />
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Teacher" size="lg">
+      <form onSubmit={handleSubmit}>
+        <Modal.Body>
+          <div className="space-y-6">
+            {/* Personal Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Full Name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  error={errors.name}
+                  required
+                  placeholder="e.g. Sarah Johnson"
+                />
+                
+                <Input
+                  label="Phone Number"
+                  name="phone_number"
+                  type="tel"
+                  value={formData.phone_number}
+                  onChange={handleInputChange}
+                  error={errors.phone_number}
+                  required
+                  placeholder="+919876543210"
+                />
+                
+                <Input
+                  label="Email Address"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  error={errors.email}
+                  placeholder="sarah.johnson@school.com"
+                />
+                
+                <Input
+                  label="Experience (Years)"
+                  name="experience_years"
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={formData.experience_years}
+                  onChange={handleInputChange}
+                  error={errors.experience_years}
+                  placeholder="e.g. 5"
+                />
+              </div>
             </div>
-            <div className="form-group">
-              <label>Phone Number *</label>
-              <input
-                type="tel"
-                name="phone_number"
-                value={formData.phone_number}
-                onChange={handleInputChange}
-                placeholder="+919876543211"
-                required
-              />
+
+            {/* Professional Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Professional Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Class Name"
+                  name="class_name"
+                  value={formData.class_name}
+                  onChange={handleInputChange}
+                  error={errors.class_name}
+                  required
+                  placeholder="e.g. Morning Stars, Little Flowers"
+                />
+                
+                <Select
+                  label="Primary Subject"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleInputChange}
+                  options={subjectOptions}
+                  placeholder="Select subject"
+                />
+                
+                <div className="md:col-span-2">
+                  <Select
+                    label="Qualification"
+                    name="qualification"
+                    value={formData.qualification}
+                    onChange={handleInputChange}
+                    options={qualificationOptions}
+                    placeholder="Select qualification"
+                  />
+                </div>
+              </div>
             </div>
           </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="sarah.johnson@school.com"
-              />
-            </div>
-            <div className="form-group">
-              <label>Class Assigned</label>
-              <select
-                name="class_name"
-                value={formData.class_name}
-                onChange={handleInputChange}
-              >
-                <option value="">Select Class</option>
-                <option value="Pre-K A">Nursery</option>
-                <option value="Pre-K B">LKG</option>
-                <option value="Nursery A">UKG</option>
-                <option value="Nursery B">Tuition Class 1st-4th</option>
-                <option value="Kindergarten">Tuition Class 5th-7th</option>
-                <option value="Kindergarten">Tuition Class 8th-10th</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>Subject</label>
-              <input
-                type="text"
-                name="subject"
-                value={formData.subjects}
-                onChange={handleInputChange}
-                placeholder="e.g. Mathematics, English, Arts & Crafts"
-              />
-            </div>
-            <div className="form-group">
-              <label>Experience (Years)</label>
-              <input
-                type="number"
-                name="experience_years"
-                value={formData.experience_years}
-                onChange={handleInputChange}
-                placeholder="5"
-                min="0"
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-              <label>Qualification</label>
-              <input
-                type="text"
-                name="qualification"
-                value={formData.qualification}
-                onChange={handleInputChange}
-                placeholder="B.Ed, Early Childhood Development"
-              />
-            </div>
-          </div>
-
-          {error && <div className="error-message">{error}</div>}
-
-          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="cancel-btn"
-              style={{ 
-                background: '#f5f5f5', 
-                color: '#333', 
-                border: '1px solid #ddd', 
-                padding: '12px 20px', 
-                borderRadius: '6px', 
-                cursor: 'pointer', 
-                fontWeight: '500' 
-              }}
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              disabled={loading} 
-              className="submit-btn"
-              style={{ 
-                background: loading ? '#cccccc' : '#4CAF50', 
-                color: 'white', 
-                border: 'none', 
-                padding: '12px 20px', 
-                borderRadius: '6px', 
-                cursor: loading ? 'not-allowed' : 'pointer', 
-                fontWeight: '500' 
-              }}
-            >
-              {loading ? 'Adding...' : '👨‍🏫 Add Teacher'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </Modal.Body>
+        
+        <Modal.Footer>
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={loading}>
+            Add Teacher
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   );
 };
 

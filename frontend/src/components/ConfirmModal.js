@@ -1,23 +1,27 @@
 import React from 'react';
+import { ConfirmModal as ModernConfirmModal } from './ui';
 
-const ConfirmModal = ({ isOpen, title = 'Confirm', message, confirmText = 'Confirm', cancelText = 'Cancel', onConfirm, onCancel }) => {
-  if (!isOpen) return null;
+const ConfirmModal = ({ 
+  isOpen, 
+  title = 'Confirm', 
+  message, 
+  confirmText = 'Confirm', 
+  cancelText = 'Cancel', 
+  onConfirm, 
+  onCancel,
+  loading = false
+}) => {
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="close-btn" onClick={onCancel} type="button">×</button>
-        </div>
-        <div style={{ padding: 20 }}>
-          <p>{message}</p>
-          <div className="modal-actions">
-            <button className="cancel-btn" type="button" onClick={onCancel}>{cancelText}</button>
-            <button className="submit-btn" type="button" onClick={onConfirm}>{confirmText}</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ModernConfirmModal
+      isOpen={isOpen}
+      onClose={onCancel}
+      onConfirm={onConfirm}
+      title={title}
+      message={message}
+      confirmText={confirmText}
+      cancelText={cancelText}
+      loading={loading}
+    />
   );
 };
 

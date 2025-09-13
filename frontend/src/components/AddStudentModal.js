@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import './AddStudentModal.css';
 import api from '../api';
+import { Modal, Button, Input, Select } from './ui';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
   const [formData, setFormData] = useState({
@@ -14,31 +16,17 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
     emergency_contact: '',
     medical_notes: '',
     program: '',
-    notes: ''
+    notes: '',
+    primary_contact: 'mother'
   });
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Fetch teachers when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchTeachers();
-      // Reset form when modal opens
-      setFormData({
-        name: '',
-        age: '',
-        mother_phone: '',
-        father_phone: '',
-        teacher_name: '',
-        class_name: '',
-        date_of_birth: '',
-        emergency_contact: '',
-        medical_notes: '',
-        program: '',
-        notes: ''
-      });
-      setErrors({});
+      resetForm();
     }
   }, [isOpen]);
 
@@ -50,20 +38,33 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
       }
     } catch (error) {
       console.error('Error fetching teachers:', error);
+      toast.error('Failed to load teachers');
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      age: '',
+      mother_phone: '',
+      father_phone: '',
+      teacher_name: '',
+      class_name: '',
+      date_of_birth: '',
+      emergency_contact: '',
+      medical_notes: '',
+      program: '',
+      notes: '',
+      primary_contact: 'mother'
+    });
+    setErrors({});
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
@@ -77,10 +78,7 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
     if (!formData.mother_phone.trim()) newErrors.mother_phone = 'Mother\'s phone is required';
     if (!formData.father_phone.trim()) newErrors.father_phone = 'Father\'s phone is required';
     if (!formData.program) newErrors.program = 'Program is required';
-    if (!['mother','father'].includes(formData.primary_contact || 'mother')) {
-      // normalize default selection
-      setFormData(prev => ({ ...prev, primary_contact: 'mother' }));
-    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -88,135 +86,229 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+    
     setLoading(true);
     try {
-      const parentPhone = (formData.primary_contact === 'father' ? formData.father_phone : formData.mother_phone) || '';
+      const parentPhone = formData.primary_contact === 'father' ? formData.father_phone : formData.mother_phone;
       const studentData = {
         ...formData,
         parent_phone: parentPhone,
         age: parseInt(formData.age)
       };
+      
       const { data } = await api.post('/students', studentData);
       if (data.success) {
+        toast.success('Student added successfully!');
         onStudentAdded(data.student);
         onClose();
+        resetForm();
       } else {
-        alert(data.message || 'Error adding student');
+        toast.error(data.message || 'Failed to add student');
       }
     } catch (error) {
       console.error('Error adding student:', error);
-      alert('Error adding student. Please try again.');
+      const message = error.response?.data?.message || 'Failed to add student';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  const teacherOptions = teachers.map(teacher => ({
+    value: teacher.name,
+    label: `${teacher.name} - ${teacher.class_name || 'No class'}`
+  }));
+
+  const programOptions = [
+    { value: 'nursery', label: 'Nursery' },
+    { value: 'pre-k', label: 'Pre-K' },
+    { value: 'kindergarten', label: 'Kindergarten' },
+    { value: 'daycare', label: 'Daycare' }
+  ];
+
+  const contactOptions = [
+    { value: 'mother', label: 'Mother' },
+    { value: 'father', label: 'Father' }
+  ];
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2>Add New Student</h2>
-          <button className="close-button" onClick={onClose}>&times;</button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="student-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="name">Student Name *</label>
-              <input type="text" id="name" name="name" value={formData.name} onChange={handleInputChange} className={errors.name ? 'error' : ''} placeholder="Enter student name" />
-              {errors.name && <span className="error-message">{errors.name}</span>}
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Student" size="lg">
+      <form onSubmit={handleSubmit}>
+        <Modal.Body>
+          <div className="space-y-6">
+            {/* Student Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Student Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Full Name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  error={errors.name}
+                  required
+                  placeholder="Enter student's full name"
+                />
+                
+                <Input
+                  label="Age"
+                  name="age"
+                  type="number"
+                  min="1"
+                  max="18"
+                  value={formData.age}
+                  onChange={handleInputChange}
+                  error={errors.age}
+                  required
+                  placeholder="Enter age"
+                />
+                
+                <Input
+                  label="Date of Birth"
+                  name="date_of_birth"
+                  type="date"
+                  value={formData.date_of_birth}
+                  onChange={handleInputChange}
+                  error={errors.date_of_birth}
+                  required
+                />
+                
+                <Select
+                  label="Program"
+                  name="program"
+                  value={formData.program}
+                  onChange={handleInputChange}
+                  options={programOptions}
+                  error={errors.program}
+                  required
+                  placeholder="Select program"
+                />
+              </div>
             </div>
-            <div className="form-group">
-              <label htmlFor="age">Age *</label>
-              <input type="number" id="age" name="age" value={formData.age} onChange={handleInputChange} className={errors.age ? 'error' : ''} placeholder="Enter age" min="1" max="18" />
-              {errors.age && <span className="error-message">{errors.age}</span>}
+
+            {/* Class Assignment */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Class Assignment
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Select
+                  label="Teacher"
+                  name="teacher_name"
+                  value={formData.teacher_name}
+                  onChange={handleInputChange}
+                  options={teacherOptions}
+                  error={errors.teacher_name}
+                  required
+                  placeholder="Select teacher"
+                />
+                
+                <Input
+                  label="Class Name"
+                  name="class_name"
+                  value={formData.class_name}
+                  onChange={handleInputChange}
+                  error={errors.class_name}
+                  required
+                  placeholder="e.g., Morning Stars, Little Flowers"
+                />
+              </div>
+            </div>
+
+            {/* Parent Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Parent Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Mother's Phone"
+                  name="mother_phone"
+                  type="tel"
+                  value={formData.mother_phone}
+                  onChange={handleInputChange}
+                  error={errors.mother_phone}
+                  required
+                  placeholder="+919876543210"
+                />
+                
+                <Input
+                  label="Father's Phone"
+                  name="father_phone"
+                  type="tel"
+                  value={formData.father_phone}
+                  onChange={handleInputChange}
+                  error={errors.father_phone}
+                  required
+                  placeholder="+919876543210"
+                />
+                
+                <Select
+                  label="Primary Contact"
+                  name="primary_contact"
+                  value={formData.primary_contact}
+                  onChange={handleInputChange}
+                  options={contactOptions}
+                  required
+                />
+                
+                <Input
+                  label="Emergency Contact"
+                  name="emergency_contact"
+                  type="tel"
+                  value={formData.emergency_contact}
+                  onChange={handleInputChange}
+                  placeholder="+919876543210"
+                />
+              </div>
+            </div>
+
+            {/* Additional Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Additional Information
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="form-label">Medical Notes</label>
+                  <textarea
+                    name="medical_notes"
+                    value={formData.medical_notes}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="form-input resize-none"
+                    placeholder="Any allergies, medical conditions, or special requirements..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="form-label">Additional Notes</label>
+                  <textarea
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="form-input resize-none"
+                    placeholder="Any additional information about the student..."
+                  />
+                </div>
+              </div>
             </div>
           </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="date_of_birth">Date of Birth *</label>
-              <input type="date" id="date_of_birth" name="date_of_birth" value={formData.date_of_birth} onChange={handleInputChange} className={errors.date_of_birth ? 'error' : ''} />
-              {errors.date_of_birth && <span className="error-message">{errors.date_of_birth}</span>}
-            </div>
-            <div className="form-group">
-              <label htmlFor="class_name">Class Name *</label>
-              <input type="text" id="class_name" name="class_name" value={formData.class_name} onChange={handleInputChange} className={errors.class_name ? 'error' : ''} placeholder="Enter class name" />
-              {errors.class_name && <span className="error-message">{errors.class_name}</span>}
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="teacher_name">Select Teacher *</label>
-              <select id="teacher_name" name="teacher_name" value={formData.teacher_name} onChange={handleInputChange} className={errors.teacher_name ? 'error' : ''}>
-                <option value="">Select a teacher</option>
-                {teachers.map(teacher => (
-                  <option key={teacher.id} value={teacher.name}>{teacher.name} - {teacher.class_name}</option>
-                ))}
-              </select>
-              {errors.teacher_name && <span className="error-message">{errors.teacher_name}</span>}
-            </div>
-            <div className="form-group">
-              <label htmlFor="program">Program *</label>
-              <select id="program" name="program" value={formData.program} onChange={handleInputChange} className={errors.program ? 'error' : ''}>
-                <option value="">Select</option>
-                <option value="School">School</option>
-                <option value="Tuition">Tuition</option>
-              </select>
-              {errors.program && <span className="error-message">{errors.program}</span>}
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="mother_phone">Mother's Phone *</label>
-              <input type="tel" id="mother_phone" name="mother_phone" value={formData.mother_phone} onChange={handleInputChange} className={errors.mother_phone ? 'error' : ''} placeholder="Enter mother's phone number" />
-              {errors.mother_phone && <span className="error-message">{errors.mother_phone}</span>}
-            </div>
-            <div className="form-group">
-              <label htmlFor="father_phone">Father's Phone *</label>
-              <input type="tel" id="father_phone" name="father_phone" value={formData.father_phone} onChange={handleInputChange} className={errors.father_phone ? 'error' : ''} placeholder="Enter father's phone number" />
-              {errors.father_phone && <span className="error-message">{errors.father_phone}</span>}
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="primary_contact">Primary Contact *</label>
-              <select id="primary_contact" name="primary_contact" value={formData.primary_contact || 'mother'} onChange={handleInputChange}>
-                <option value="mother">Mother</option>
-                <option value="father">Father</option>
-              </select>
-            </div>
-            <div className="form-group"></div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="emergency_contact">Emergency Contact</label>
-              <input type="tel" id="emergency_contact" name="emergency_contact" value={formData.emergency_contact} onChange={handleInputChange} placeholder="Enter emergency contact number" />
-            </div>
-            <div className="form-group">
-              <label htmlFor="medical_notes">Medical Notes</label>
-              <textarea id="medical_notes" name="medical_notes" value={formData.medical_notes} onChange={handleInputChange} placeholder="Enter any medical notes or allergies (optional)" rows="3" />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="notes">Notes</label>
-            <textarea id="notes" name="notes" value={formData.notes} onChange={handleInputChange} placeholder="Any notes" rows="3" />
-          </div>
-
-          <div className="form-buttons">
-            <button type="button" onClick={onClose} className="cancel-button" disabled={loading}>Cancel</button>
-            <button type="submit" className="submit-button" disabled={loading}>{loading ? 'Saving...' : 'Save Student'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </Modal.Body>
+        
+        <Modal.Footer>
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={loading}>
+            Add Student
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   );
 };
 
