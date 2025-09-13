@@ -20,6 +20,12 @@ const AddUserModal = ({ isOpen, onClose, onCreated }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const roleOptions = [
+    { value: 'parent', label: 'Parent' },
+    { value: 'teacher', label: 'Teacher' },
+    { value: 'admin', label: 'Administrator' }
+  ];
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({ 
@@ -169,13 +175,10 @@ const AddUserModal = ({ isOpen, onClose, onCreated }) => {
               name="role"
               value={formData.role}
               onChange={handleChange}
+              options={roleOptions}
               error={errors.role}
               required
-            >
-              <option value="parent">Parent</option>
-              <option value="teacher">Teacher</option>
-              <option value="admin">Administrator</option>
-            </Select>
+            />
 
             {/* Role Information */}
             {currentRoleInfo && (
@@ -239,13 +242,14 @@ const AddUserModal = ({ isOpen, onClose, onCreated }) => {
             variant="secondary"
             onClick={onClose}
             disabled={loading}
+            className="bg-gray-500 hover:bg-gray-600 text-white border-0"
           >
             Cancel
           </Button>
           <Button
             type="submit"
             loading={loading}
-            className="px-6"
+            className="px-6 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white border-0"
           >
             Create User
           </Button>

@@ -59,7 +59,7 @@ const addStudent = async (req, res) => {
     );
     return res.json({ success: true, student: result.rows[0], message: 'Student added successfully' });
   } catch (error) {
-    return res.status(500).json({ success: false, message: 'Error adding student' });
+    return res.status(500).json({ success: false, message: 'Error adding student', error: error.message });
   }
 };
 

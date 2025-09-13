@@ -1,134 +1,163 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../api';
-import StudentReportsModal from './StudentReportsModal';
-import StudentPerformanceModal from './StudentPerformanceModal';
-import './TeacherStudentsView.css';
+import { motion } from 'framer-motion';
+import { Card, Button, LoadingCard, Badge } from './ui';
+import { 
+  ChartBarIcon,
+  EyeIcon,
+  ArrowLeftIcon,
+  UserGroupIcon,
+  AcademicCapIcon
+} from '@heroicons/react/24/outline';
 
-const TeacherStudentsView = ({ teacher, onBack, isAdmin = false }) => {
+const TeacherStudentsView = ({ user, onPerformanceClick, onReportsClick, onBack, isAdmin = false }) => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [reportStudent, setReportStudent] = useState(null);
-  const [perfStudent, setPerfStudent] = useState(null);
 
-  const fetchTeacherStudents = useCallback(async () => {
+  useEffect(() => {
+    fetchStudents();
+  }, [user]);
+
+  const fetchStudents = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      setError(null);
-      
-      // Use teacher name to fetch students
-      const { data } = await api.get(`/students/teacher/${encodeURIComponent(teacher.name)}`);
-      
-      if (data.success) {
-        setStudents(data.students);
+      // Fetch all students and filter by teacher name
+      const response = await api.get('/students');
+      if (response.data && response.data.success) {
+        const allStudents = response.data.students || [];
+        // Filter students assigned to this specific teacher
+        const teacherStudents = allStudents.filter(student => 
+          student.teacher_name === user.name
+        );
+        setStudents(teacherStudents);
       } else {
-        setError('Failed to fetch students');
+        setStudents([]);
       }
     } catch (err) {
-      setError('Error connecting to server');
-      console.error('Error fetching teacher students:', err);
+      console.error('Error fetching students:', err);
+      setError('Failed to load students. Please try again.');
+      setStudents([]);
     } finally {
       setLoading(false);
     }
-  }, [teacher.name]);
-
-  useEffect(() => {
-    if (teacher) {
-      fetchTeacherStudents();
-    }
-  }, [teacher, fetchTeacherStudents]);
-
-  const handleAddNote = (student) => {
-    setReportStudent(student);
   };
 
   const handleViewProgress = (student) => {
-    setPerfStudent(student);
+    if (onPerformanceClick) {
+      onPerformanceClick(student);
+    }
   };
 
-  const handleEditStudent = (student) => {
-    // Placeholder for edit student functionality (for admin)
-    alert(`Edit ${student.name} - Feature coming soon!`);
+  const handleViewReports = (student) => {
+    if (onReportsClick) {
+      onReportsClick(student);
+    }
   };
 
   return (
-    <>
-    <div className="teacher-students-view">
-      <div className="view-header">
-        <button className="back-button" onClick={onBack}>
-          ← Back to {isAdmin ? 'Teachers' : 'Overview'}
-        </button>
-        <div className="teacher-info">
-          <h2>👶 Students of {teacher.name}</h2>
-          <p>Class: {teacher.class_name} | Subject: {teacher.subject}</p>
-        </div>
-      </div>
-
-      <div className="students-section">
-        <div className="section-header">
-          <h3>📚 Class Students ({students.length})</h3>
-          {isAdmin && (
-            <span className="admin-badge">Admin View</span>
-          )}
-        </div>
-
-        {loading && <p>Loading students...</p>}
-        
-        {error && (
-          <div className="error-message">
-            <p style={{color: 'red'}}>Error: {error}</p>
-            <button onClick={fetchTeacherStudents} className="retry-button">
-              Retry
-            </button>
+    <div className="space-y-6">
+      {/* Header - only show in admin mode */}
+      {isAdmin && (
+        <div className="flex items-center space-x-4">
+          <Button
+            onClick={onBack}
+            variant="ghost"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+          </Button>
+          <div className="flex items-center space-x-3">
+            <UserGroupIcon className="w-6 h-6 text-blue-600" />
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                Students - {user?.name}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Manage students assigned to this teacher
+              </p>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        <div className="students-grid">
+      {/* Loading state */}
+      {loading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <LoadingCard key={i} />
+          ))}
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && (
+        <div className="text-center py-8">
+          <div className="text-red-500 dark:text-red-400 font-medium">{error}</div>
+        </div>
+      )}
+
+      {/* Students content */}
+      {!loading && !error && (
+        <div className="space-y-4">
           {students.length > 0 ? (
-            students.map(student => (
-              <div key={student.id} className="student-card">
-                <div className="student-info">
-                  <h4>{student.name}</h4>
-                  <p><strong>Age:</strong> {student.age} years</p>
-                  <p><strong>Parent:</strong> {student.parent_phone}</p>
-                  <p><strong>Class:</strong> {student.class_name}</p>
-                  <p><strong>DOB:</strong> {new Date(student.date_of_birth).toLocaleDateString()}</p>
-                  <p><strong>Emergency:</strong> {student.emergency_contact}</p>
-                  {student.medical_notes && (
-                    <p><strong>Medical Notes:</strong> {student.medical_notes}</p>
-                  )}
-                </div>
-                <div className="student-actions">
-                  <button className="action-btn note-btn" onClick={() => handleAddNote(student)}>📄 Reports</button>
-                  <button className="action-btn progress-btn" onClick={() => handleViewProgress(student)}>📊 Performance</button>
-                </div>
-              </div>
-            ))
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {students.map((student, index) => (
+                <motion.div
+                  key={student.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card hover className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        {student.name}
+                      </h4>
+                      <Badge variant="primary">{student.age} years</Badge>
+                    </div>
+                    
+                    <div className="space-y-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
+                      <p><span className="font-medium">Parent:</span> {student.parent_phone}</p>
+                      <p><span className="font-medium">Class:</span> {student.class_name}</p>
+                      <p><span className="font-medium">Program:</span> {student.program}</p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleViewProgress(student)}>
+                        <ChartBarIcon className="h-4 w-4 mr-1" />
+                        Performance
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleViewReports(student)}>
+                        <EyeIcon className="h-4 w-4 mr-1" />
+                        Reports
+                      </Button>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
           ) : (
-            !loading && !error && (
-              <div className="no-students">
-                <p>No students assigned to this teacher yet.</p>
-                {isAdmin && (
-                  <p>You can assign students to this teacher when adding new students.</p>
-                )}
-              </div>
-            )
+            <div className="text-center py-12">
+              <AcademicCapIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                No students assigned
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {isAdmin 
+                  ? `No students have been assigned to ${user?.name} yet.`
+                  : "No students have been assigned to you yet. Contact your administrator for assistance."
+                }
+              </p>
+            </div>
           )}
         </div>
-      </div>
+      )}
     </div>
-    <StudentReportsModal
-      isOpen={!!reportStudent}
-      student={reportStudent}
-      onClose={() => setReportStudent(null)}
-      isTeacher={true}
-    />
-    <StudentPerformanceModal
-      isOpen={!!perfStudent}
-      student={perfStudent}
-      onClose={() => setPerfStudent(null)}
-    />
-    </>
   );
 };
 

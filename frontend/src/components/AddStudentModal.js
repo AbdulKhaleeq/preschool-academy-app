@@ -120,10 +120,8 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
   }));
 
   const programOptions = [
-    { value: 'nursery', label: 'Nursery' },
-    { value: 'pre-k', label: 'Pre-K' },
-    { value: 'kindergarten', label: 'Kindergarten' },
-    { value: 'daycare', label: 'Daycare' }
+    { value: 'School', label: 'School' },
+    { value: 'Tuition', label: 'Tuition' }
   ];
 
   const contactOptions = [

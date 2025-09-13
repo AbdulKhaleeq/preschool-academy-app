@@ -22,8 +22,8 @@ import AddStudentModal from './AddStudentModal';
 import EditStudentModal from './EditStudentModal';
 import EditTeacherModal from './EditTeacherModal';
 import TeacherStudentsView from './TeacherStudentsView';
-import StudentPerformanceModal from './StudentPerformanceModal';
-import ParentDailyReportsModal from './ParentDailyReportsModal';
+import PerformancePage from './PerformancePage';
+import ReportsPage from './ReportsPage';
 import ConfirmModal from './ConfirmModal';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
@@ -39,14 +39,16 @@ const AdminDashboard = ({ user }) => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // View states
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'performance', 'reports'
+  const [selectedStudent, setSelectedStudent] = useState(null);
+
   // Modal states
   const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = useState(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [isEditTeacherModalOpen, setIsEditTeacherModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [teacherStudentsView, setTeacherStudentsView] = useState(null);
-  const [studentPerf, setStudentPerf] = useState(null);
-  const [studentReports, setStudentReports] = useState(null);
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
@@ -259,6 +261,27 @@ const AdminDashboard = ({ user }) => {
 
   const addButtonConfig = getAddButtonConfig();
 
+  // Conditional rendering for full-page views
+  if (currentView === 'performance') {
+    return (
+      <PerformancePage
+        student={selectedStudent}
+        user={user}
+        onBack={() => setCurrentView('dashboard')}
+      />
+    );
+  }
+
+  if (currentView === 'reports') {
+    return (
+      <ReportsPage
+        student={selectedStudent}
+        user={user}
+        onBack={() => setCurrentView('dashboard')}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Mobile sidebar backdrop */}
@@ -364,9 +387,27 @@ const AdminDashboard = ({ user }) => {
               transition={{ duration: 0.3 }}
             >
               {activeTab === 'overview' && <OverviewContent students={students} teachers={teachers} users={users} />}
-              {activeTab === 'students' && <StudentsContent students={filteredStudents} loading={loading} onDelete={handleDeleteStudent} onEdit={setEditStudent} onViewPerformance={setStudentPerf} onViewReports={setStudentReports} />}
+              {activeTab === 'students' && <StudentsContent students={filteredStudents} loading={loading} onDelete={handleDeleteStudent} onEdit={setEditStudent} onViewPerformance={(student) => {
+                setSelectedStudent(student);
+                setCurrentView('performance');
+              }} onViewReports={(student) => {
+                setSelectedStudent(student);
+                setCurrentView('reports');
+              }} />}
               {activeTab === 'teachers' && !teacherStudentsView && <TeachersContent teachers={filteredTeachers} loading={loading} onEdit={handleEditTeacher} onDelete={handleDeleteTeacher} onViewStudents={handleViewTeacherStudents} />}
-              {activeTab === 'teachers' && teacherStudentsView && <TeacherStudentsView teacher={teacherStudentsView} onBack={handleBackToTeachers} isAdmin={true} />}
+              {activeTab === 'teachers' && teacherStudentsView && <TeacherStudentsView 
+                user={teacherStudentsView} 
+                onBack={handleBackToTeachers} 
+                isAdmin={true}
+                onPerformanceClick={(student) => {
+                  setSelectedStudent(student);
+                  setCurrentView('performance');
+                }}
+                onReportsClick={(student) => {
+                  setSelectedStudent(student);
+                  setCurrentView('reports');
+                }}
+              />}
               {activeTab === 'users' && <UsersContent users={filteredUsers} loading={loading} onToggleActive={handleToggleUserActive} onDelete={handleDeleteUser} onEdit={setEditUser} />}
               {activeTab === 'reports' && <ReportsContent programReport={programReport} loading={loading} />}
               {activeTab === 'announcements' && <AdminAnnouncements />}
@@ -422,21 +463,10 @@ const AdminDashboard = ({ user }) => {
         onUserUpdated={fetchUsers}
       />
 
-      <StudentPerformanceModal 
-        isOpen={!!studentPerf}
-        onClose={() => setStudentPerf(null)}
-        student={studentPerf}
-      />
-
-      <ParentDailyReportsModal 
-        isOpen={!!studentReports}
-        onClose={() => setStudentReports(null)}
-        student={studentReports}
-      />
-
       <ConfirmModal 
         isOpen={confirm.open}
         onClose={() => setConfirm(prev => ({ ...prev, open: false }))}
+        onCancel={() => setConfirm(prev => ({ ...prev, open: false }))}
         title={confirm.title}
         message={confirm.message}
         onConfirm={confirm.onConfirm}

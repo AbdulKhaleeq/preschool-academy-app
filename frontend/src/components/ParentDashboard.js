@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../api';
-import StudentPerformanceModal from './StudentPerformanceModal';
-import StudentReportsModal from './StudentReportsModal';
+import PerformancePage from './PerformancePage';
+import ReportsPage from './ReportsPage';
 import MessageComposer from './MessageComposer';
 import AnnouncementsView from './AnnouncementsView';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,8 +26,8 @@ const ParentDashboard = ({ user }) => {
   const [announcements, setAnnouncements] = useState([]);
   const [activities, setActivities] = useState([]);
   const [examResults, setExamResults] = useState({});
-  const [examModal, setExamModal] = useState({ open: false, student: null });
-  const [dailyModal, setDailyModal] = useState({ open: false, student: null });
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'performance', 'reports'
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [parentContacts, setParentContacts] = useState([]);
@@ -174,8 +174,14 @@ const ParentDashboard = ({ user }) => {
             loading={loading}
             error={error}
             examResults={examResults}
-            setExamModal={setExamModal}
-            setDailyModal={setDailyModal}
+            onPerformanceClick={(student) => {
+              setSelectedStudent(student);
+              setCurrentView('performance');
+            }}
+            onReportsClick={(student) => {
+              setSelectedStudent(student);
+              setCurrentView('reports');
+            }}
             openMessageFor={openMessageFor}
           />
         );
@@ -198,6 +204,27 @@ const ParentDashboard = ({ user }) => {
         return <OverviewContent students={students} messages={messages} />;
     }
   };
+
+  // Conditional rendering for different views
+  if (currentView === 'performance') {
+    return (
+      <PerformancePage
+        student={selectedStudent}
+        user={user}
+        onBack={() => setCurrentView('dashboard')}
+      />
+    );
+  }
+
+  if (currentView === 'reports') {
+    return (
+      <ReportsPage
+        student={selectedStudent}
+        user={user}
+        onBack={() => setCurrentView('dashboard')}
+      />
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -308,19 +335,6 @@ const ParentDashboard = ({ user }) => {
           </div>
         </div>
       </div>
-
-      {/* Modals */}
-      <StudentPerformanceModal
-        isOpen={examModal.open}
-        onClose={() => setExamModal({ open: false, student: null })}
-        student={examModal.student}
-      />
-      <StudentReportsModal
-        isOpen={dailyModal.open}
-        onClose={() => setDailyModal({ open: false, student: null })}
-        student={dailyModal.student}
-        isTeacher={false}
-      />
     </div>
   );
 };
@@ -379,7 +393,7 @@ const OverviewContent = ({ students, messages }) => {
 };
 
 // Children Content Component
-const ChildrenContent = ({ students, loading, error, examResults, setExamModal, setDailyModal, openMessageFor }) => {
+const ChildrenContent = ({ students, loading, error, examResults, onPerformanceClick, onReportsClick, openMessageFor }) => {
   if (loading) {
     return (
       <div className="space-y-4">
@@ -468,19 +482,17 @@ const ChildrenContent = ({ students, loading, error, examResults, setExamModal, 
 
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
-                  onClick={() => setExamModal({ open: true, student })}
+                  onClick={() => onPerformanceClick(student)}
                   size="sm"
-                  variant="secondary"
-                  className="flex-1 text-sm"
+                  className="flex-1 text-sm bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white border-0"
                 >
                   <TrophyIcon className="w-4 h-4 mr-2" />
                   Performance
                 </Button>
                 <Button
-                  onClick={() => setDailyModal({ open: true, student })}
+                  onClick={() => onReportsClick(student)}
                   size="sm"
-                  variant="secondary"
-                  className="flex-1 text-sm"
+                  className="flex-1 text-sm bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white border-0"
                 >
                   <DocumentTextIcon className="w-4 h-4 mr-2" />
                   Reports

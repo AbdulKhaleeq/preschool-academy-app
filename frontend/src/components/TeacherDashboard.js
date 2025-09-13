@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import TeacherStudentsView from './TeacherStudentsView';
+import PerformancePage from './PerformancePage';
+import ReportsPage from './ReportsPage';
 import api from '../api';
 import TeacherExamsTab from './TeacherExamsTab';
 import MessageComposer from './MessageComposer';
@@ -25,6 +27,8 @@ const TeacherDashboard = ({ user }) => {
   const [teacherContacts, setTeacherContacts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'performance', 'reports'
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     const loadOverviewAndContacts = async () => {
@@ -62,7 +66,19 @@ const TeacherDashboard = ({ user }) => {
       case 'overview':
         return <TeacherOverview overview={overview} loading={loading} />;
       case 'students':
-        return <TeacherStudentsView teacher={user} />;
+        return (
+          <TeacherStudentsView 
+            user={user}
+            onPerformanceClick={(student) => {
+              setSelectedStudent(student);
+              setCurrentView('performance');
+            }}
+            onReportsClick={(student) => {
+              setSelectedStudent(student);
+              setCurrentView('reports');
+            }}
+          />
+        );
       case 'exams':
         return <TeacherExamsTab user={user} />;
       case 'activities':
@@ -83,6 +99,33 @@ const TeacherDashboard = ({ user }) => {
         return <TeacherOverview overview={overview} loading={loading} />;
     }
   };
+
+  // Conditional rendering for different views
+  if (currentView === 'performance') {
+    return (
+      <PerformancePage
+        student={selectedStudent}
+        user={user}
+        onBack={() => {
+          setCurrentView('dashboard');
+          setActiveTab('students');
+        }}
+      />
+    );
+  }
+
+  if (currentView === 'reports') {
+    return (
+      <ReportsPage
+        student={selectedStudent}
+        user={user}
+        onBack={() => {
+          setCurrentView('dashboard');
+          setActiveTab('students');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
