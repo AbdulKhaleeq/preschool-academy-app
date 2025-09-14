@@ -133,6 +133,18 @@ const runMigrations = async () => {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS expenses (
+      id SERIAL PRIMARY KEY,
+      category TEXT NOT NULL,
+      description TEXT NOT NULL,
+      amount NUMERIC NOT NULL DEFAULT 0,
+      expense_date DATE NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
   // Enable pgcrypto for gen_random_uuid()
   await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
 

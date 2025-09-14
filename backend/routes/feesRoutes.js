@@ -6,7 +6,8 @@ const {
   addStudentToFees,
   generateNewMonth,
   getAvailableStudents,
-  generateReport
+  generateReport,
+  getParentDues
 } = require('../controllers/feesController');
 
 const router = express.Router();
@@ -28,6 +29,9 @@ router.post('/:studentId/status', /* authenticate, authorize('admin'), */ markFe
 
 // Add student to fee tracking
 router.post('/:studentId/add', /* authenticate, authorize('admin'), */ addStudentToFees);
+
+// Get pending dues for a parent
+router.get('/parent/:parentId/dues', /* authenticate, */ getParentDues);
 
 module.exports = router;
 

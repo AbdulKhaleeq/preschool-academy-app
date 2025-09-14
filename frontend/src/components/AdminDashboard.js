@@ -29,7 +29,7 @@ import ConfirmModal from './ConfirmModal';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
 import AdminAnnouncements from './AdminAnnouncements';
-import FinancialManagement from './FinancialManagement';
+import FinancialDashboard from './FinancialDashboard';
 
 const AdminDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -38,6 +38,7 @@ const AdminDashboard = ({ user }) => {
   const [teachers, setTeachers] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -412,7 +413,7 @@ const AdminDashboard = ({ user }) => {
                 }}
               />}
               {activeTab === 'users' && <UsersContent users={filteredUsers} loading={loading} onToggleActive={handleToggleUserActive} onDelete={handleDeleteUser} onEdit={setEditUser} />}
-              {activeTab === 'financials' && <FinancialManagement />}
+              {activeTab === 'financials' && <FinancialDashboard />}
               {activeTab === 'reports' && <ReportsContent programReport={programReport} loading={loading} />}
               {activeTab === 'announcements' && <AdminAnnouncements />}
             </motion.div>

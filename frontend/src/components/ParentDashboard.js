@@ -4,6 +4,7 @@ import PerformancePage from './PerformancePage';
 import ReportsPage from './ReportsPage';
 import MessageComposer from './MessageComposer';
 import AnnouncementsView from './AnnouncementsView';
+import PendingDues from './PendingDues';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, Button, LoadingSpinner, Badge, LoadingCard } from './ui';
 import { 
@@ -13,7 +14,6 @@ import {
   CalendarIcon,
   MegaphoneIcon,
   CurrencyDollarIcon,
-  AcademicCapIcon,
   DocumentTextIcon,
   TrophyIcon,
   Bars3Icon
@@ -23,6 +23,7 @@ const ParentDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [students, setStudents] = useState([]);
   const [messages, setMessages] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [announcements, setAnnouncements] = useState([]);
   const [activities, setActivities] = useState([]);
   const [examResults, setExamResults] = useState({});
@@ -45,7 +46,7 @@ const ParentDashboard = ({ user }) => {
     if (activeTab === 'schedule') {
       fetchAnnouncementsAndActivities();
     }
-  }, [activeTab, user]);
+  }, [activeTab, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchMyChildren = async () => {
     try {
@@ -159,6 +160,7 @@ const ParentDashboard = ({ user }) => {
     { id: 'overview', label: 'Overview', icon: HomeIcon },
     { id: 'children', label: 'My Children', icon: UserGroupIcon },
     { id: 'messages', label: 'Messages', icon: ChatBubbleLeftRightIcon },
+    { id: 'dues', label: 'Pending Dues', icon: CurrencyDollarIcon },
     { id: 'schedule', label: 'Schedule', icon: CalendarIcon },
     { id: 'announcements', label: 'Announcements', icon: MegaphoneIcon },
   ];
@@ -196,6 +198,8 @@ const ParentDashboard = ({ user }) => {
             />
           </div>
         );
+      case 'dues':
+        return <PendingDues user={user} />;
       case 'schedule':
         return <ScheduleContent activities={activities} loading={loading} />;
       case 'announcements':

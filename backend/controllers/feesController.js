@@ -247,13 +247,78 @@ const generateReport = async (req, res) => {
   }
 };
 
+// Get pending dues for a specific parent
+const getParentDues = async (req, res) => {
+  try {
+    const { parentId } = req.params;
+
+    console.log(`👨‍👩‍👧‍👦 Getting pending dues for parent ID: ${parentId}`);
+
+    // Get all unpaid fees for students linked to this parent
+    const result = await pool.query(`
+      SELECT 
+        s.id as student_id,
+        s.name as student_name,
+        s.class_name,
+        f.id as fee_id,
+        f.amount,
+        f.month,
+        f.year,
+        f.is_paid
+      FROM students s
+      JOIN fees f ON s.id = f.student_id
+      WHERE s.parent_id = $1 
+        AND f.is_paid = false
+      ORDER BY f.year DESC, f.month DESC
+    `, [parentId]);
+
+    const pendingDues = result.rows.map(row => ({
+      student_id: row.student_id,
+      student_name: row.student_name,
+      class_name: row.class_name,
+      fee_id: row.fee_id,
+      amount: parseFloat(row.amount),
+      month: row.month,
+      year: row.year,
+      monthName: getMonthName(row.month)
+    }));
+
+    // Calculate total pending amount
+    const totalPending = pendingDues.reduce((sum, due) => sum + due.amount, 0);
+
+    console.log(`✅ Found ${pendingDues.length} pending dues for parent (Total: ₹${totalPending})`);
+    return res.json({ 
+      success: true, 
+      pendingDues,
+      totalPending,
+      count: pendingDues.length
+    });
+  } catch (error) {
+    console.error('❌ Error getting parent dues:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Error getting parent dues' 
+    });
+  }
+};
+
+// Helper function to get month name
+const getMonthName = (month) => {
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  return months[month - 1] || 'Unknown';
+};
+
 module.exports = { 
   getMonthlyFees,
   markFeeStatus, 
   addStudentToFees,
   generateNewMonth,
   getAvailableStudents,
-  generateReport
+  generateReport,
+  getParentDues
 };
 
 

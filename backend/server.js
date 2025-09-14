@@ -22,6 +22,7 @@ const examsRoutes = require('./routes/examsRoutes');
 const announcementsRoutes = require('./routes/announcementsRoutes');
 const activitiesRoutes = require('./routes/activitiesRoutes');
 const feesRoutes = require('./routes/feesRoutes');
+const expensesRoutes = require('./routes/expensesRoutes');
 const studentsUpdateRoutes = require('./routes/studentsUpdateRoutes');
 const { runMigrations } = require('./config/dbInit');
 
@@ -80,6 +81,7 @@ app.use('/exams', examsRoutes);
 app.use('/announcements', announcementsRoutes);
 app.use('/activities', activitiesRoutes);
 app.use('/fees', feesRoutes);
+app.use('/expenses', expensesRoutes);
 app.use('/students-update', studentsUpdateRoutes);
 
 runMigrations()
