@@ -47,7 +47,6 @@ const runMigrations = async () => {
       parent_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
       teacher_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
       fee_amount NUMERIC DEFAULT 0
-      );
     );
   `);
 
