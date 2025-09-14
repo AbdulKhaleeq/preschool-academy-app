@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { Card, Button, Input, Select } from './ui';
+import ConfirmModal from './ConfirmModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   PlusIcon,
@@ -24,6 +25,7 @@ const ExpenseManagement = () => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(false);
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
 
   // Expense categories
   const expenseCategories = [
@@ -77,19 +79,26 @@ const ExpenseManagement = () => {
     }
   };
 
-  const handleDeleteExpense = async (expenseId) => {
-    if (!window.confirm('Are you sure you want to delete this expense?')) return;
-
-    try {
-      const response = await api.delete(`/expenses/${expenseId}`);
-      if (response.data.success) {
-        toast.success('Expense deleted successfully');
-        loadMonthlyExpenses();
+  const handleDeleteExpense = async (expenseId, expenseDescription) => {
+    setConfirm({
+      open: true,
+      title: 'Delete Expense',
+      message: `Are you sure you want to delete this expense "${expenseDescription}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          const response = await api.delete(`/expenses/${expenseId}`);
+          if (response.data.success) {
+            toast.success('Expense deleted successfully');
+            loadMonthlyExpenses();
+          }
+        } catch (error) {
+          console.error('Error deleting expense:', error);
+          toast.error('Failed to delete expense');
+        } finally {
+          setConfirm(prev => ({ ...prev, open: false }));
+        }
       }
-    } catch (error) {
-      console.error('Error deleting expense:', error);
-      toast.error('Failed to delete expense');
-    }
+    });
   };
 
   const handleGenerateReport = async () => {
@@ -157,178 +166,216 @@ Report generated on: ${new Date().toLocaleString()}
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Expense Management</h2>
-          <p className="text-gray-600 dark:text-gray-400">Track and manage school expenses</p>
-        </div>
-        
-        <div className="flex gap-3">
-          <Button 
-            onClick={() => setShowAddExpenseModal(true)}
-            className="flex items-center gap-2"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Add Expense
-          </Button>
-          <Button 
-            onClick={handleGenerateReport}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <DocumentArrowDownIcon className="h-4 w-4" />
-            Download Report
-          </Button>
-        </div>
-      </div>
-
-      {/* Month/Year Selection */}
-      <Card className="p-4">
-        <div className="flex items-center gap-4">
-          <CalendarDaysIcon className="h-5 w-5 text-gray-500" />
-          <Select
-            value={currentMonth}
-            onChange={(e) => setCurrentMonth(Number(e.target.value))}
-            options={Array.from({ length: 12 }, (_, i) => ({
-              value: i + 1,
-              label: getMonthName(i + 1)
-            }))}
-          />
-          <Select
-            value={currentYear}
-            onChange={(e) => setCurrentYear(Number(e.target.value))}
-            options={Array.from({ length: 5 }, (_, i) => ({
-              value: new Date().getFullYear() - 2 + i,
-              label: new Date().getFullYear() - 2 + i
-            }))}
-          />
-        </div>
-      </Card>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
-              <BanknotesIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Expenses</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {formatCurrency(summary.totalExpenses)}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <ReceiptPercentIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Categories</p>
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {Object.keys(summary.expensesByCategory || {}).length}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-              <ChartBarIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Entries</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {expenses.length}
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Expenses List */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          {getMonthName(currentMonth)} {currentYear} Expenses
-        </h3>
-
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">Loading expenses...</p>
-          </div>
-        ) : expenses.length === 0 ? (
-          <div className="text-center py-12">
-            <ReceiptPercentIcon className="h-12 w-12 text-gray-400 dark:text-gray-600 mx-auto mb-2" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
-              No expenses recorded
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Start tracking expenses by adding your first entry
+    <>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+        {/* Header */}
+        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+              Expense Management
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Track and manage school expenses
             </p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <AnimatePresence>
-              {expenses.map((expense) => (
-                <motion.div
-                  key={expense.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">{getCategoryIcon(expense.category)}</div>
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white">
-                          {expense.description}
-                        </h4>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                          <span>{getCategoryLabel(expense.category)}</span>
-                          <span>•</span>
-                          <span>{new Date(expense.expense_date).toLocaleDateString()}</span>
+          
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <Button 
+              onClick={() => setShowAddExpenseModal(true)}
+              className="flex items-center justify-center gap-2 px-4 py-3 sm:py-2 text-sm font-medium w-full sm:w-auto"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Add Expense
+            </Button>
+            <Button 
+              onClick={handleGenerateReport}
+              variant="outline"
+              className="flex items-center justify-center gap-2 px-4 py-3 sm:py-2 text-sm font-medium w-full sm:w-auto"
+            >
+              <DocumentArrowDownIcon className="h-4 w-4" />
+              Download Report
+            </Button>
+          </div>
+        </div>
+
+        {/* Month/Year Selection */}
+        <Card className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2">
+              <CalendarDaysIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
+            </div>
+            <div className="flex gap-3 flex-1">
+              <div className="flex-1">
+                <Select
+                  value={currentMonth}
+                  onChange={(e) => setCurrentMonth(Number(e.target.value))}
+                  options={Array.from({ length: 12 }, (_, i) => ({
+                    value: i + 1,
+                    label: getMonthName(i + 1)
+                  }))}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex-1">
+                <Select
+                  value={currentYear}
+                  onChange={(e) => setCurrentYear(Number(e.target.value))}
+                  options={Array.from({ length: 5 }, (_, i) => ({
+                    value: new Date().getFullYear() - 2 + i,
+                    label: new Date().getFullYear() - 2 + i
+                  }))}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg flex-shrink-0">
+                <BanknotesIcon className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                  Total Expenses
+                </p>
+                <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">
+                  {formatCurrency(summary.totalExpenses)}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg flex-shrink-0">
+                <ReceiptPercentIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                  Categories
+                </p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {Object.keys(summary.expensesByCategory || {}).length}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg flex-shrink-0">
+                <ChartBarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                  Total Entries
+                </p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">
+                  {expenses.length}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Expenses List */}
+        <Card className="p-4 sm:p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            {getMonthName(currentMonth)} {currentYear} Expenses
+          </h3>
+
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">Loading expenses...</p>
+            </div>
+          ) : expenses.length === 0 ? (
+            <div className="text-center py-12">
+              <ReceiptPercentIcon className="h-12 w-12 text-gray-400 dark:text-gray-600 mx-auto mb-2" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
+                No expenses recorded
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Start tracking expenses by adding your first entry
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <AnimatePresence>
+                {expenses.map((expense) => (
+                  <motion.div
+                    key={expense.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                      <div className="flex items-start sm:items-center gap-3">
+                        <div className="text-xl sm:text-2xl flex-shrink-0 pt-1 sm:pt-0">
+                          {getCategoryIcon(expense.category)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                            {expense.description}
+                          </h4>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            <span className="truncate">{getCategoryLabel(expense.category)}</span>
+                            <span className="hidden sm:inline">•</span>
+                            <span>{new Date(expense.expense_date).toLocaleDateString()}</span>
+                          </div>
                         </div>
                       </div>
+                      
+                      <div className="flex items-center justify-between sm:justify-end gap-3">
+                        <span className="text-base sm:text-lg font-semibold text-red-600 dark:text-red-400">
+                          {formatCurrency(expense.amount)}
+                        </span>
+                        <Button
+                          onClick={() => handleDeleteExpense(expense.id, expense.description)}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900 px-3 py-2"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-semibold text-red-600 dark:text-red-400">
-                        {formatCurrency(expense.amount)}
-                      </span>
-                      <Button
-                        onClick={() => handleDeleteExpense(expense.id)}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
-      </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </Card>
 
-      {/* Add Expense Modal */}
-      <AddExpenseModal
-        isOpen={showAddExpenseModal}
-        onClose={() => setShowAddExpenseModal(false)}
-        categories={expenseCategories}
-        onAddExpense={loadMonthlyExpenses}
-        month={currentMonth}
-        year={currentYear}
-      />
+        {/* Add Expense Modal */}
+        <AddExpenseModal
+          isOpen={showAddExpenseModal}
+          onClose={() => setShowAddExpenseModal(false)}
+          categories={expenseCategories}
+          onAddExpense={loadMonthlyExpenses}
+          month={currentMonth}
+          year={currentYear}
+        />
+
+        <ConfirmModal
+          isOpen={confirm.open}
+          title={confirm.title}
+          message={confirm.message}
+          onConfirm={confirm.onConfirm}
+          onCancel={() => setConfirm(prev => ({ ...prev, open: false }))}
+          confirmText="Delete"
+          cancelText="Cancel"
+        />
+      </div>
     </div>
+    </>
   );
 };
 
@@ -387,17 +434,17 @@ const AddExpenseModal = ({ isOpen, onClose, categories, onAddExpense, month, yea
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50"
           onClick={onClose}
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md"
+            className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-4 text-center sm:text-left">
               Add New Expense
             </h2>
             
@@ -411,6 +458,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, onAddExpense, month, yea
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   options={categoryOptions}
                   required
+                  className="w-full"
                 />
               </div>
               
@@ -424,6 +472,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, onAddExpense, month, yea
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Enter expense description"
                   required
+                  className="w-full h-12 text-base"
                 />
               </div>
 
@@ -439,6 +488,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, onAddExpense, month, yea
                   min="0"
                   step="0.01"
                   required
+                  className="w-full h-12 text-base"
                 />
               </div>
 
@@ -451,14 +501,24 @@ const AddExpenseModal = ({ isOpen, onClose, categories, onAddExpense, month, yea
                   value={formData.expense_date}
                   onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
                   required
+                  className="w-full h-12 text-base"
                 />
               </div>
               
-              <div className="flex gap-3 pt-4">
-                <Button type="button" onClick={onClose} variant="outline" className="flex-1">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button 
+                  type="button" 
+                  onClick={onClose} 
+                  variant="outline" 
+                  className="w-full sm:flex-1 h-12 text-base font-medium"
+                >
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1" disabled={loading}>
+                <Button 
+                  type="submit" 
+                  className="w-full sm:flex-1 h-12 text-base font-medium" 
+                  disabled={loading}
+                >
                   {loading ? 'Adding...' : 'Add Expense'}
                 </Button>
               </div>
