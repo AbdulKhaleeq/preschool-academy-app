@@ -13,7 +13,8 @@ import {
   TrashIcon,
   EyeIcon,
   MagnifyingGlassIcon,
-  Bars3Icon
+  Bars3Icon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 
 // Import existing modals (we'll modernize these later)
@@ -28,6 +29,7 @@ import ConfirmModal from './ConfirmModal';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
 import AdminAnnouncements from './AdminAnnouncements';
+import FinancialManagement from './FinancialManagement';
 
 const AdminDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -242,6 +244,7 @@ const AdminDashboard = ({ user }) => {
     { id: 'students', label: 'Students', icon: AcademicCapIcon },
     { id: 'teachers', label: 'Teachers', icon: UserGroupIcon },
     { id: 'users', label: 'Users', icon: UsersIcon },
+    { id: 'financials', label: 'Financials', icon: CurrencyDollarIcon },
     { id: 'reports', label: 'Reports', icon: ChartBarIcon },
     { id: 'announcements', label: 'Announcements', icon: MegaphoneIcon },
   ];
@@ -409,6 +412,7 @@ const AdminDashboard = ({ user }) => {
                 }}
               />}
               {activeTab === 'users' && <UsersContent users={filteredUsers} loading={loading} onToggleActive={handleToggleUserActive} onDelete={handleDeleteUser} onEdit={setEditUser} />}
+              {activeTab === 'financials' && <FinancialManagement />}
               {activeTab === 'reports' && <ReportsContent programReport={programReport} loading={loading} />}
               {activeTab === 'announcements' && <AdminAnnouncements />}
             </motion.div>

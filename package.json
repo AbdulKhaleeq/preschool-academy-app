@@ -1,4 +1,7 @@
 {
+  "name": "preschool-academy-app",
+  "version": "1.0.0",
+  "description": "A comprehensive school management system for preschools",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",

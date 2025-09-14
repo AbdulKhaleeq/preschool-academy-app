@@ -16,6 +16,7 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
     emergency_contact: '',
     medical_notes: '',
     program: '',
+    fee_amount: '',
     notes: '',
     primary_contact: 'mother'
   });
@@ -54,6 +55,7 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
       emergency_contact: '',
       medical_notes: '',
       program: '',
+      fee_amount: '',
       notes: '',
       primary_contact: 'mother'
     });
@@ -182,6 +184,18 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
                   error={errors.program}
                   required
                   placeholder="Select program"
+                />
+                
+                <Input
+                  label="Monthly Fee Amount"
+                  type="number"
+                  name="fee_amount"
+                  value={formData.fee_amount}
+                  onChange={handleInputChange}
+                  error={errors.fee_amount}
+                  placeholder="Enter monthly fee amount"
+                  min="0"
+                  step="0.01"
                 />
               </div>
             </div>

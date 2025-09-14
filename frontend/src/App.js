@@ -9,6 +9,8 @@ import { PhoneIcon, KeyIcon } from '@heroicons/react/24/outline';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 
+// Preschool Academy Management System - Main App Component
+
 function App() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [role, setRole] = useState('parent');

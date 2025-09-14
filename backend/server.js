@@ -1,3 +1,4 @@
+// Preschool Academy Backend Server
 process.on('uncaughtException', (err) => {
   console.error('🚨 Uncaught Exception:', err);
 });

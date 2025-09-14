@@ -38,6 +38,7 @@ const runMigrations = async () => {
       emergency_contact TEXT,
       medical_notes TEXT,
       program TEXT,
+      fee_amount NUMERIC DEFAULT 0,
       notes TEXT
     );
   `);

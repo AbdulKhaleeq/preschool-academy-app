@@ -44,6 +44,7 @@ const addStudent = async (req, res) => {
       mother_phone,
       father_phone,
       program,
+      fee_amount,
       notes
     } = req.body;
 
@@ -53,9 +54,9 @@ const addStudent = async (req, res) => {
 
     // Unified insert using current schema
     const result = await pool.query(
-      `INSERT INTO students (name, age, parent_phone, mother_phone, father_phone, teacher_name, class_name, date_of_birth, emergency_contact, medical_notes, program, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [name, age || null, parent_phone || null, mother_phone || null, father_phone || null, teacher_name || null, class_name, date_of_birth || null, emergency_contact || null, medical_notes || null, program || null, notes || null]
+      `INSERT INTO students (name, age, parent_phone, mother_phone, father_phone, teacher_name, class_name, date_of_birth, emergency_contact, medical_notes, program, fee_amount, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [name, age || null, parent_phone || null, mother_phone || null, father_phone || null, teacher_name || null, class_name, date_of_birth || null, emergency_contact || null, medical_notes || null, program || null, fee_amount || 0, notes || null]
     );
     return res.json({ success: true, student: result.rows[0], message: 'Student added successfully' });
   } catch (error) {

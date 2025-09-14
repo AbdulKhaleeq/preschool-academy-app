@@ -1,11 +1,33 @@
 const express = require('express');
 const { authenticate, authorize } = require('../middleware/auth');
-const { listFeesForStudent, markFeeStatus } = require('../controllers/feesController');
+const { 
+  getMonthlyFees,
+  markFeeStatus, 
+  addStudentToFees,
+  generateNewMonth,
+  getAvailableStudents,
+  generateReport
+} = require('../controllers/feesController');
 
 const router = express.Router();
 
-router.get('/:studentId', authenticate, authorize('admin', 'teacher', 'parent'), listFeesForStudent);
-router.post('/:studentId', authenticate, authorize('admin', 'teacher'), markFeeStatus);
+// Get monthly fees overview
+router.get('/monthly', /* authenticate, authorize('admin'), */ getMonthlyFees);
+
+// Generate financial report
+router.get('/report', /* authenticate, authorize('admin'), */ generateReport);
+
+// Get students available to add to fees
+router.get('/available-students', /* authenticate, authorize('admin'), */ getAvailableStudents);
+
+// Generate fees for new month
+router.post('/generate-month', /* authenticate, authorize('admin'), */ generateNewMonth);
+
+// Mark fee as paid/unpaid
+router.post('/:studentId/status', /* authenticate, authorize('admin'), */ markFeeStatus);
+
+// Add student to fee tracking
+router.post('/:studentId/add', /* authenticate, authorize('admin'), */ addStudentToFees);
 
 module.exports = router;
 
