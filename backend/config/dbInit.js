@@ -31,15 +31,23 @@ const runMigrations = async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS students (
       id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      age INT,
-      class_name TEXT NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      age INTEGER NOT NULL,
+      parent_phone VARCHAR(20) NOT NULL,
+      teacher_name VARCHAR(100),
+      class_name VARCHAR(100),
       date_of_birth DATE,
-      emergency_contact TEXT,
+      emergency_contact VARCHAR(20),
       medical_notes TEXT,
-      program TEXT,
-      fee_amount NUMERIC DEFAULT 0,
-      notes TEXT
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      mother_phone TEXT,
+      father_phone TEXT,
+      program TEXT CHECK (program = ANY (ARRAY['School', 'Tuition'])),
+      notes TEXT,
+      parent_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      teacher_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      fee_amount NUMERIC DEFAULT 0
+      );
     );
   `);
 
