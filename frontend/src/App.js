@@ -21,20 +21,58 @@ function App() {
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  // Mobile number validation
+  const isMobileValid = phoneNumber.trim().length === 10 && /^\d{10}$/.test(phoneNumber.trim());
+
+  // OTP validation
+  const isOtpValid = otp.trim().length === 6 && /^\d{6}$/.test(otp.trim());
+
+  // Handle mobile number input with validation
+  const handleMobileChange = (e) => {
+    const value = e.target.value.replace(/[^\d]/g, ''); // Only allow digits
+    if (value.length <= 10) {
+      setPhoneNumber(value);
+    }
+  };
+
+  // Handle OTP input with validation
+  const handleOtpChange = (e) => {
+    const value = e.target.value.replace(/[^\d]/g, ''); // Only allow digits
+    if (value.length <= 6) {
+      setOtp(value);
+    }
+  };
+
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { data } = await api.post('/auth/request-otp', { phone: phoneNumber, role });
+      // Clean phone number (remove spaces)
+      const cleanPhone = phoneNumber.trim();
+      
+      const { data } = await api.post('/auth/request-otp', { phone: cleanPhone });
       if (data.success) {
         setOtpRequested(true);
         toast.success(`OTP sent successfully! Demo OTP: ${data.otp || '******'}`);
       } else {
-        toast.error(data.message || 'Failed to request OTP');
+        // Handle specific error messages
+        if (data.message && data.message.toLowerCase().includes('not found')) {
+          toast.error('Mobile number not registered. Please contact admin.');
+        } else {
+          toast.error(data.message || 'Failed to request OTP');
+        }
       }
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Connection error');
+      // Handle network/server errors
+      const errorMessage = error?.response?.data?.message;
+      if (errorMessage && errorMessage.toLowerCase().includes('not found')) {
+        toast.error('Mobile number not registered. Please contact admin.');
+      } else if (errorMessage && errorMessage.toLowerCase().includes('not registered')) {
+        toast.error('Mobile number not registered. Please contact admin.');
+      } else {
+        toast.error(errorMessage || 'Connection error. Please try again.');
+      }
       console.error('OTP request error:', error);
     }
     
@@ -46,25 +84,20 @@ function App() {
     setLoading(true);
 
     try {
-      const { data } = await api.post('/auth/verify-otp', { phone: phoneNumber, otp });
+      const { data } = await api.post('/auth/verify-otp', { phone: phoneNumber.trim(), otp });
       if (data.success) {
         localStorage.setItem('token', data.token);
-        if (role && data.user?.role && role !== data.user.role) {
-          toast.error('Role does not match account');
-          localStorage.removeItem('token');
-        } else {
-          const loggedInUser = { ...data.user };
-          setUser(loggedInUser);
-          setIsLoggedIn(true);
-          toast.success('Successfully logged in!');
-        }
+        const loggedInUser = { ...data.user };
+        setUser(loggedInUser);
+        setIsLoggedIn(true);
+        toast.success(`Welcome ${data.user.role}! Successfully logged in!`);
       } else if (data.blocked) {
-        toast.error('Your account has been blocked');
+        toast.error('Your account has been blocked. Please contact admin.');
       } else {
-        toast.error('Invalid OTP');
+        toast.error('Invalid OTP. Please try again.');
       }
     } catch (error) {
-      const msg = error?.response?.data?.message || 'Verification failed';
+      const msg = error?.response?.data?.message || 'Verification failed. Please try again.';
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -112,14 +145,21 @@ function App() {
               >
                 <Card className="p-8">
                   <div className="text-center mb-8">
-                    <motion.h1 
+                    <motion.div 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.2 }}
-                      className="text-3xl font-bold text-gradient mb-2"
+                      className="flex items-center justify-center space-x-3 mb-2"
                     >
-                      🎓 Preschool Academy
-                    </motion.h1>
+                      <img 
+                        src="/MyLogo.png" 
+                        alt="Wellington Kids Logo"
+                        className="w-10 h-10 object-contain"
+                      />
+                      <h1 className="text-3xl font-bold text-gradient">
+                        Wellington Kids
+                      </h1>
+                    </motion.div>
                     <motion.p 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -141,26 +181,26 @@ function App() {
                         className="space-y-6"
                       >
                         <Input
-                          label="Phone Number"
+                          label="Mobile"
                           type="tel"
                           value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          placeholder="+919876543210"
+                          onChange={handleMobileChange}
+                          placeholder="Enter here"
                           icon={PhoneIcon}
                           required
+                          maxLength={10}
                         />
 
-                        <Select
-                          label="I am a"
-                          value={role}
-                          onChange={(e) => setRole(e.target.value)}
-                          options={roleOptions}
-                          required
-                        />
+                        {phoneNumber && !isMobileValid && (
+                          <p className="text-sm text-red-500 mt-1">
+                            Please enter a valid 10-digit mobile number
+                          </p>
+                        )}
 
                         <Button
                           type="submit"
                           loading={loading}
+                          disabled={!isMobileValid || loading}
                           className="w-full"
                           variant="gradient"
                         >
@@ -180,11 +220,18 @@ function App() {
                           label="Enter OTP"
                           type="text"
                           value={otp}
-                          onChange={(e) => setOtp(e.target.value)}
+                          onChange={handleOtpChange}
                           placeholder="6-digit OTP"
                           icon={KeyIcon}
                           required
+                          maxLength={6}
                         />
+
+                        {otp && !isOtpValid && (
+                          <p className="text-sm text-red-500 mt-1">
+                            Please enter a valid 6-digit OTP
+                          </p>
+                        )}
 
                         <div className="flex space-x-3">
                           <Button
@@ -198,6 +245,7 @@ function App() {
                           <Button
                             type="submit"
                             loading={loading}
+                            disabled={!isOtpValid || loading}
                             className="flex-1"
                             variant="gradient"
                           >
