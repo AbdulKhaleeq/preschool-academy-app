@@ -92,8 +92,3 @@ runMigrations()
     // process.exit(1);
   });
 
-
-//   setInterval(() => {
-//   console.log("💓 Backend heartbeat: still alive", new Date().toISOString());
-// }, 5000);
-
