@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Dashboard from './components/Dashboard';
+import AppFlowController from './components/AppFlowController';
 import './styles/globals.css';
 import api from './api';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -98,134 +99,147 @@ function App() {
           }}
         />
         
-        {isLoggedIn && user ? (
-          <Dashboard user={user} onLogout={handleLogout} />
-        ) : (
-          <div className="min-h-screen flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="w-full max-w-md"
-            >
-              <Card className="p-8">
-                <div className="text-center mb-8">
-                  <motion.h1 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-3xl font-bold text-gradient mb-2"
-                  >
-                    🎓 Preschool Academy
-                  </motion.h1>
-                  <motion.p 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                    className="text-gray-600 dark:text-gray-400"
-                  >
-                    Welcome back! Please sign in to continue.
-                  </motion.p>
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {!otpRequested ? (
-                    <motion.form
-                      key="phone-form"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      onSubmit={handleRequestOtp}
-                      className="space-y-6"
+        <AppFlowController user={user}>
+          {isLoggedIn && user ? (
+            <Dashboard user={user} onLogout={handleLogout} />
+          ) : (
+            <div className="min-h-screen flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="w-full max-w-md"
+              >
+                <Card className="p-8">
+                  <div className="text-center mb-8">
+                    <motion.h1 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="text-3xl font-bold text-gradient mb-2"
                     >
-                      <Input
-                        label="Phone Number"
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="+919876543210"
-                        icon={PhoneIcon}
-                        required
-                      />
+                      🎓 Preschool Academy
+                    </motion.h1>
+                    <motion.p 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                      className="text-gray-600 dark:text-gray-400"
+                    >
+                      Welcome back! Please sign in to continue.
+                    </motion.p>
+                  </div>
 
-                      <Select
-                        label="I am a"
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                        options={roleOptions}
-                        required
-                      />
-
-                      <Button
-                        type="submit"
-                        loading={loading}
-                        className="w-full"
-                        variant="gradient"
+                  <AnimatePresence mode="wait">
+                    {!otpRequested ? (
+                      <motion.form
+                        key="phone-form"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        onSubmit={handleRequestOtp}
+                        className="space-y-6"
                       >
-                        Send OTP
-                      </Button>
-                    </motion.form>
-                  ) : (
-                    <motion.form
-                      key="otp-form"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      onSubmit={handleVerifyOtp}
-                      className="space-y-6"
-                    >
-                      <Input
-                        label="Enter OTP"
-                        type="text"
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        placeholder="6-digit OTP"
-                        icon={KeyIcon}
-                        required
-                      />
+                        <Input
+                          label="Phone Number"
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          placeholder="+919876543210"
+                          icon={PhoneIcon}
+                          required
+                        />
 
-                      <div className="flex space-x-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setOtpRequested(false)}
-                          className="flex-1"
-                        >
-                          Back
-                        </Button>
+                        <Select
+                          label="I am a"
+                          value={role}
+                          onChange={(e) => setRole(e.target.value)}
+                          options={roleOptions}
+                          required
+                        />
+
                         <Button
                           type="submit"
                           loading={loading}
-                          className="flex-1"
+                          className="w-full"
                           variant="gradient"
                         >
-                          Verify OTP
+                          Send OTP
                         </Button>
-                      </div>
-                    </motion.form>
-                  )}
-                </AnimatePresence>
+                      </motion.form>
+                    ) : (
+                      <motion.form
+                        key="otp-form"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        onSubmit={handleVerifyOtp}
+                        className="space-y-6"
+                      >
+                        <Input
+                          label="Enter OTP"
+                          type="text"
+                          value={otp}
+                          onChange={(e) => setOtp(e.target.value)}
+                          placeholder="6-digit OTP"
+                          icon={KeyIcon}
+                          required
+                        />
 
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
-                >
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Demo Login:
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Phone: +919876543210
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    OTP will be shown after requesting
-                  </p>
-                </motion.div>
-              </Card>
-            </motion.div>
-          </div>
-        )}
+                        <div className="flex space-x-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setOtpRequested(false)}
+                            className="flex-1"
+                          >
+                            Back
+                          </Button>
+                          <Button
+                            type="submit"
+                            loading={loading}
+                            className="flex-1"
+                            variant="gradient"
+                          >
+                            Verify OTP
+                          </Button>
+                        </div>
+                      </motion.form>
+                    )}
+                  </AnimatePresence>
+
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
+                  >
+                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Demo Login:
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Phone: +919876543210
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      OTP will be shown after requesting
+                    </p>
+                    
+                    {/* Reset Onboarding Button for Testing */}
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem('wellington_onboarding_completed');
+                        toast.success('Onboarding reset! Refresh to see again.');
+                      }}
+                      className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Reset Onboarding (for testing)
+                    </button>
+                  </motion.div>
+                </Card>
+              </motion.div>
+            </div>
+          )}
+        </AppFlowController>
       </div>
     </ThemeProvider>
   );

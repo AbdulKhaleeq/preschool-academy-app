@@ -24,6 +24,24 @@
     --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    
+    /* Wellington Kids Theme Colors */
+    --wellington-navy: #1e3a8a;
+    --wellington-burgundy: #7f1d1d;
+    --wellington-gold: #d4af37;
+    --wellington-green: #15803d;
+    --wellington-navy-light: #2563eb;
+    --wellington-navy-dark: #1e1b4b;
+    --wellington-burgundy-light: #991b1b;
+    --wellington-burgundy-dark: #450a0a;
+    --wellington-gold-light: #fbbf24;
+    --wellington-gold-dark: #a16207;
+    --wellington-cream: #fef3c7;
+    
+    /* Wellington Gradients */
+    --wellington-primary-gradient: linear-gradient(135deg, var(--wellington-navy) 0%, var(--wellington-navy-light) 100%);
+    --wellington-secondary-gradient: linear-gradient(135deg, var(--wellington-burgundy) 0%, var(--wellington-burgundy-light) 100%);
+    --wellington-accent-gradient: linear-gradient(135deg, var(--wellington-gold) 0%, var(--wellington-gold-light) 100%);
   }
 }
 

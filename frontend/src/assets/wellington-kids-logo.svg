@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Wellington Kids Logo Placeholder -->
+<!-- Replace this with the actual SVG content of your logo -->
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#1e3a8a" rx="20"/>
+  <text x="100" y="100" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="16" font-family="Arial, sans-serif">
+    Wellington Kids Logo
+  </text>
+  <text x="100" y="120" text-anchor="middle" dominant-baseline="middle" fill="#d4af37" font-size="10" font-family="Arial, sans-serif">
+    LEARN, PLAY, GROW
+  </text>
+</svg>
