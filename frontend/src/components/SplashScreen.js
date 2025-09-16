@@ -92,7 +92,7 @@ const SplashScreen = ({ onComplete }) => {
                 className="text-sm sm:text-base opacity-90"
                 style={{ color: '#64748b' }}
               >
-                Welcome to Your Preschool Academy
+                Welcome to Wellington Kids
               </p>
             </motion.div>
 

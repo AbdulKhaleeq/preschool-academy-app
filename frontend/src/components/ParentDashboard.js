@@ -532,9 +532,6 @@ const ChildrenContent = ({ students, loading, error, examResults, onPerformanceC
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                       {student.name}
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Class: {student.class_name || 'Not assigned'}
-                    </p>
                   </div>
                 </div>
                 <Badge variant="success" className="text-xs">
@@ -544,9 +541,9 @@ const ChildrenContent = ({ students, loading, error, examResults, onPerformanceC
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Age</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Class</div>
                   <div className="font-semibold text-gray-900 dark:text-gray-100">
-                    {student.age || 'N/A'}
+                    {student.class_name || 'Not assigned'}
                   </div>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">

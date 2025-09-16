@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ParentDashboard from './ParentDashboard';
 import TeacherDashboard from './TeacherDashboard';
 import AdminDashboard from './AdminDashboard';
@@ -6,13 +6,16 @@ import { motion } from 'framer-motion';
 import { Button } from './ui';
 import { 
   ArrowRightOnRectangleIcon, 
-  SunIcon, 
-  MoonIcon 
+  ChevronDownIcon 
 } from '@heroicons/react/24/outline';
-import { useTheme } from '../contexts/ThemeContext';
 
 const Dashboard = ({ user, onLogout }) => {
-  const { isDarkMode, toggleTheme } = useTheme();
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+
+  // Close dropdown when user changes (navigation)
+  useEffect(() => {
+    setIsProfileDropdownOpen(false);
+  }, [user]);
 
   const renderDashboard = () => {
     switch(user.role) {
@@ -26,10 +29,10 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              <h2 className="text-xl font-semibold text-gray-900">
                 Invalid user role
               </h2>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">
+              <p className="text-gray-600 mt-2">
                 Please contact your administrator
               </p>
             </div>
@@ -57,61 +60,83 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50">
       {/* Top Navigation Bar */}
       <motion.nav 
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700"
+        className="bg-white shadow-sm border-b border-gray-200"
       >
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+        <div className="px-2 sm:px-4 lg:px-6">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             {/* Logo and Brand */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <motion.img
+                src="/MyLogo.png"
+                alt="Wellington Kids Logo"
+                className="h-6 w-6 sm:h-8 sm:w-8 object-contain"
+                whileHover={{ scale: 1.05 }}
+              />
               <motion.h1 
-                className="text-xl font-bold text-gradient"
+                className="text-lg sm:text-xl font-bold text-gradient"
                 whileHover={{ scale: 1.05 }}
               >
-                🎓 Preschool Academy
+                Wellington Kids
               </motion.h1>
             </div>
 
-            {/* User info and actions */}
-            <div className="flex items-center space-x-4">
-              {/* Theme Toggle */}
+            {/* User Profile with Dropdown */}
+            <div className="relative">
               <button
-                onClick={toggleTheme}
-                className="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="flex items-center space-x-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
               >
-                {isDarkMode ? (
-                  <SunIcon className="h-5 w-5" />
-                ) : (
-                  <MoonIcon className="h-5 w-5" />
-                )}
-              </button>
-
-              {/* User Profile */}
-              <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700">
-                <div className="text-2xl">{getRoleIcon(user.role)}</div>
+                <div className="text-xl sm:text-2xl">{getRoleIcon(user.role)}</div>
                 <div className="hidden sm:block">
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    Welcome, {getRoleTitle(user.role)}!
+                  <div className="text-sm font-medium text-gray-900">
+                    {getRoleTitle(user.role)}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="text-xs text-gray-500">
                     {user.name || user.phone}
                   </div>
                 </div>
-              </div>
+                <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+              </button>
 
-              {/* Logout Button */}
-              <Button
-                variant="ghost"
-                onClick={onLogout}
-                className="p-2"
-              >
-                <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                <span className="hidden sm:inline-block ml-2">Logout</span>
-              </Button>
+              {/* Profile Dropdown */}
+              {isProfileDropdownOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div 
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                  />
+                  
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="py-1">
+                      <div className="px-4 py-2 border-b border-gray-100 sm:hidden">
+                        <div className="text-sm font-medium text-gray-900">
+                          Welcome, {getRoleTitle(user.role)}!
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {user.name || user.phone}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          onLogout();
+                          setIsProfileDropdownOpen(false);
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <ArrowRightOnRectangleIcon className="h-4 w-4 mr-2" />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -166,15 +166,15 @@
 
 /* Animation utilities */
 .fade-in {
-  animation: fadeIn 0.5s ease-in-out;
+  @apply animate-fade-in;
 }
 
 .slide-up {
-  animation: slideUp 0.3s ease-out;
+  @apply animate-slide-up;
 }
 
 .scale-in {
-  animation: scaleIn 0.2s ease-out;
+  @apply animate-scale-in;
 }
 
 /* Print styles */
