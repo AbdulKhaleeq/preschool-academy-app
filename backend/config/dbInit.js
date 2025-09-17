@@ -32,21 +32,18 @@ const runMigrations = async () => {
     CREATE TABLE IF NOT EXISTS students (
       id SERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
-      age INTEGER NOT NULL,
-      parent_phone VARCHAR(20) NOT NULL,
-      teacher_name VARCHAR(100),
-      class_name VARCHAR(100),
+      age INTEGER,
+      class_name VARCHAR(100) NOT NULL,
+      parent_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      teacher_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       date_of_birth DATE,
       emergency_contact VARCHAR(20),
       medical_notes TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      mother_phone TEXT,
-      father_phone TEXT,
       program TEXT CHECK (program = ANY (ARRAY['School', 'Tuition'])),
+      fee_amount NUMERIC DEFAULT 0,
       notes TEXT,
-      parent_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-      teacher_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-      fee_amount NUMERIC DEFAULT 0
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      parent_phone VARCHAR(20)
     );
   `);
 
@@ -66,11 +63,11 @@ const runMigrations = async () => {
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
       sender_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      receiver_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       student_id INT REFERENCES students(id) ON DELETE SET NULL,
-      receiver_id INT REFERENCES users(id) ON DELETE SET NULL,
+      message TEXT NOT NULL,
       conversation_id UUID DEFAULT gen_random_uuid(),
       read_at TIMESTAMP,
-      message TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
@@ -148,21 +145,12 @@ const runMigrations = async () => {
   // Enable pgcrypto for gen_random_uuid()
   await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS student_parents (
-      student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      parent_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      PRIMARY KEY (student_id, parent_id)
-    );
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS student_teachers (
-      student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      teacher_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      PRIMARY KEY (student_id, teacher_id)
-    );
-  `);
+  // Create indexes for better performance on foreign key lookups
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_students_parent_id ON students(parent_id);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_students_teacher_id ON students(teacher_id);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_students_class_name ON students(class_name);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_messages_participants ON messages(sender_id, receiver_id);');
 };
 
 module.exports = { runMigrations };

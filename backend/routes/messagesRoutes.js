@@ -6,7 +6,10 @@ const {
     parentSendToTeacher,
     getMessages,
     getTeacherContacts,
-    getParentContacts
+    getParentContacts,
+    getConversationThreads,
+    markMessagesAsRead,
+    clearConversation
 } = require('../controllers/messagesController');
 
 const router = express.Router();
@@ -22,5 +25,8 @@ router.get('/parent/contacts', authenticate, authorize('parent'), getParentConta
 
 // Common message routes
 router.get('/', authenticate, getMessages);
+router.get('/conversations', authenticate, getConversationThreads);
+router.put('/mark-read', authenticate, markMessagesAsRead);
+router.delete('/conversation/:conversationId', authenticate, clearConversation);
 
 module.exports = router;

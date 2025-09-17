@@ -8,38 +8,59 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
   const [formData, setFormData] = useState({
     name: '',
     age: '',
-    mother_phone: '',
-    father_phone: '',
-    teacher_name: '',
+    parent_phone: '',
+    teacher_id: '',
     class_name: '',
     date_of_birth: '',
     emergency_contact: '',
     medical_notes: '',
     program: '',
     fee_amount: '',
-    notes: '',
-    primary_contact: 'mother'
+    notes: ''
   });
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Helper function to format date for input field
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    
+    // Handle date string in YYYY-MM-DD format directly to avoid timezone issues
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString;
+    }
+    
+    // For other date formats, parse carefully
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    
+    // Use local date components to avoid timezone shift
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  };
+
   useEffect(() => {
     if (isOpen && student) {
+      // Handle both old and new data structures for backward compatibility
+      const parentPhone = student.parent_phone || student.mother_phone || student.father_phone || '';
+      const teacherId = student.teacher_id || (student.teacher_name ? '' : '');
+      
       setFormData({
         name: student.name || '',
         age: student.age || '',
-        mother_phone: student.mother_phone || '',
-        father_phone: student.father_phone || '',
-        teacher_name: student.teacher_name || '',
+        parent_phone: parentPhone,
+        teacher_id: teacherId,
         class_name: student.class_name || '',
-        date_of_birth: student.date_of_birth || '',
+        date_of_birth: formatDateForInput(student.date_of_birth),
         emergency_contact: student.emergency_contact || '',
         medical_notes: student.medical_notes || '',
         program: student.program || '',
         fee_amount: student.fee_amount || '',
-        notes: student.notes || '',
-        primary_contact: student.primary_contact || 'mother'
+        notes: student.notes || ''
       });
       setErrors({});
       fetchTeachers();
@@ -48,7 +69,7 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
 
   const fetchTeachers = async () => {
     try {
-      const { data } = await api.get('/teachers');
+      const { data } = await api.get('/teachers/users');
       if (data.success) {
         setTeachers(data.teachers);
       }
@@ -72,9 +93,8 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
     if (!formData.age || formData.age < 1 || formData.age > 18) newErrors.age = 'Age must be between 1 and 18';
     if (!formData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required';
     if (!formData.class_name.trim()) newErrors.class_name = 'Class name is required';
-    if (!formData.teacher_name) newErrors.teacher_name = 'Please select a teacher';
-    if (!formData.mother_phone.trim()) newErrors.mother_phone = 'Mother\'s phone is required';
-    if (!formData.father_phone.trim()) newErrors.father_phone = 'Father\'s phone is required';
+    if (!formData.teacher_id) newErrors.teacher_id = 'Please select a teacher';
+    if (!formData.parent_phone.trim()) newErrors.parent_phone = 'Parent phone is required';
     if (!formData.program) newErrors.program = 'Program is required';
     
     setErrors(newErrors);
@@ -87,14 +107,12 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
 
     setLoading(true);
     try {
-      const parentPhone = formData.primary_contact === 'father' ? formData.father_phone : formData.mother_phone;
       const studentData = {
         ...formData,
-        parent_phone: parentPhone,
         age: parseInt(formData.age)
       };
       
-      const { data } = await api.put(`/students-update/${student.id}`, studentData);
+      const { data } = await api.put(`/students/${student.id}`, studentData);
       
       if (data.success) {
         toast.success('Student updated successfully!');
@@ -113,18 +131,13 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
   };
 
   const teacherOptions = teachers.map(teacher => ({
-    value: teacher.name,
-    label: `${teacher.name} - ${teacher.class_name || 'No class'}`
+    value: teacher.id,
+    label: `${teacher.name} - ${teacher.phone_number || 'No phone'}`
   }));
 
   const programOptions = [
     { value: 'School', label: 'School' },
     { value: 'Tuition', label: 'Tuition' }
-  ];
-
-  const contactOptions = [
-    { value: 'mother', label: 'Mother' },
-    { value: 'father', label: 'Father' }
   ];
 
   return (
@@ -204,11 +217,11 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
                   label="Teacher"
-                  name="teacher_name"
-                  value={formData.teacher_name}
+                  name="teacher_id"
+                  value={formData.teacher_id}
                   onChange={handleInputChange}
                   options={teacherOptions}
-                  error={errors.teacher_name}
+                  error={errors.teacher_id}
                   required
                   placeholder="Select teacher"
                 />
@@ -232,34 +245,14 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="Mother's Phone"
-                  name="mother_phone"
+                  label="Parent Phone"
+                  name="parent_phone"
                   type="tel"
-                  value={formData.mother_phone}
+                  value={formData.parent_phone}
                   onChange={handleInputChange}
-                  error={errors.mother_phone}
+                  error={errors.parent_phone}
                   required
                   placeholder="+919876543210"
-                />
-                
-                <Input
-                  label="Father's Phone"
-                  name="father_phone"
-                  type="tel"
-                  value={formData.father_phone}
-                  onChange={handleInputChange}
-                  error={errors.father_phone}
-                  required
-                  placeholder="+919876543210"
-                />
-                
-                <Select
-                  label="Primary Contact"
-                  name="primary_contact"
-                  value={formData.primary_contact}
-                  onChange={handleInputChange}
-                  options={contactOptions}
-                  required
                 />
                 
                 <Input

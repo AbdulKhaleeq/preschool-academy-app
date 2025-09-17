@@ -9,6 +9,20 @@ const getTeachers = async (req, res) => {
   }
 };
 
+// Get teachers from users table (for student assignment dropdown)
+const getTeacherUsers = async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, phone_number FROM users WHERE role = $1 AND is_active = true ORDER BY name',
+      ['teacher']
+    );
+    return res.json({ success: true, teachers: result.rows });
+  } catch (error) {
+    console.error('Error fetching teacher users:', error);
+    return res.status(500).json({ success: false, message: 'Error fetching teachers' });
+  }
+};
+
 const addTeacher = async (req, res) => {
   try {
     const { name, phone_number, email, class_name, subject, experience_years, qualification } = req.body;
@@ -63,7 +77,7 @@ const deleteTeacher = async (req, res) => {
   }
 };
 
-module.exports = { getTeachers, addTeacher, updateTeacher, deleteTeacher };
+module.exports = { getTeachers, getTeacherUsers, addTeacher, updateTeacher, deleteTeacher };
 
 
 

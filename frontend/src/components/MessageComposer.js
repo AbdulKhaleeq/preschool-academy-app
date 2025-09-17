@@ -8,7 +8,8 @@ import {
   UserGroupIcon,
   MagnifyingGlassIcon,
   ArrowLeftIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  EllipsisVerticalIcon
 } from '@heroicons/react/24/outline';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import toast from 'react-hot-toast';
@@ -22,9 +23,13 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
   const [searchQuery, setSearchQuery] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showContactsList, setShowContactsList] = useState(true);
+  const [conversations, setConversations] = useState([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // Check if mobile
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -33,6 +38,20 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    fetchConversations();
   }, []);
 
   useEffect(() => {
@@ -47,45 +66,66 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     scrollToBottom();
   }, [messages]);
 
+  const fetchConversations = async () => {
+    setLoadingConversations(true);
+    try {
+      const { data } = await api.get('/messages/conversations');
+      if (data && data.status === 'success') {
+        setConversations(data.conversations || []);
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      toast.error('Failed to load conversations');
+    } finally {
+      setLoadingConversations(false);
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const getRecipientOptions = () => {
     const raw = [];
+    
+    // Add "All Parents" option for teachers
     if (isTeacher) {
       raw.push({ id: 'all', name: 'All Parents of My Students', type: 'group' });
-      (contacts || []).forEach(student => {
-        (student.parents || []).forEach(parent => {
-          raw.push({
-            id: parent.parentId ?? parent.id,
-            name: parent.parentName ?? parent.name,
-            type: 'parent',
-            studentName: student.studentName ?? student.name,
-            studentId: student.studentId ?? student.id
-          });
-        });
-      });
-    } else {
-      (contacts || []).forEach(child => {
-        (child.teachers || []).forEach(teacher => {
-          raw.push({
-            id: teacher.teacherId ?? teacher.id,
-            name: teacher.teacherName ?? teacher.name,
-            type: 'teacher',
-            studentName: child.studentName ?? child.name,
-            studentId: child.studentId ?? child.id
-          });
-        });
-      });
     }
-
-    const seen = new Set();
-    return raw.filter(item => {
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
+    
+    // Transform conversations into recipient format with unread counts
+    // Each conversation is already unique by conversation_id from backend
+    (conversations || []).forEach(conversation => {
+      if (isTeacher) {
+        raw.push({
+          id: conversation.parent_id,
+          name: conversation.parent_name,
+          type: 'parent',
+          studentName: conversation.student_name,
+          studentId: conversation.student_id,
+          unreadCount: conversation.unread_count || 0,
+          lastMessage: conversation.last_message,
+          lastMessageTime: conversation.last_message_time,
+          conversationId: conversation.conversation_id,
+          uniqueKey: conversation.conversation_id // Use conversation_id as unique identifier
+        });
+      } else {
+        raw.push({
+          id: conversation.teacher_id,
+          name: conversation.teacher_name,
+          type: 'teacher',
+          studentName: conversation.student_name,
+          studentId: conversation.student_id,
+          unreadCount: conversation.unread_count || 0,
+          lastMessage: conversation.last_message,
+          lastMessageTime: conversation.last_message_time,
+          conversationId: conversation.conversation_id,
+          uniqueKey: conversation.conversation_id // Use conversation_id as unique identifier
+        });
+      }
     });
+
+    return raw;
   };
 
   const filteredRecipients = getRecipientOptions().filter(recipient =>
@@ -98,7 +138,13 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     
     setLoading(true);
     try {
-      const { data } = await api.get(`/messages?otherUserId=${recipient.id}`);
+      // Include studentId in the API call for proper conversation separation
+      let url = `/messages?otherUserId=${recipient.id}`;
+      if (recipient.studentId) {
+        url += `&studentId=${recipient.studentId}`;
+      }
+      
+      const { data } = await api.get(url);
       console.log('Fetched messages:', data); // Debug log
       
       if (data && data.status === 'success') {
@@ -129,10 +175,28 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     }
   };
 
+  const markMessagesAsRead = async (conversationId) => {
+    if (!conversationId) return;
+    
+    try {
+      await api.put(`/messages/mark-read`, { conversationId });
+      // Refresh conversations to update unread counts
+      fetchConversations();
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  };
+
   const handleRecipientSelect = (recipient) => {
     setSelectedRecipient(recipient);
     if (isMobile) setShowContactsList(false);
     fetchMessagesForRecipient(recipient);
+    
+    // Mark messages as read when conversation is opened
+    if (recipient.conversationId) {
+      markMessagesAsRead(recipient.conversationId);
+    }
+    
     setSelectedStudentForTeacher(null);
     setSearchQuery('');
   };
@@ -141,6 +205,24 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     setShowContactsList(true);
     setSelectedRecipient(null);
     setMessages([]);
+  };
+
+  const handleClearChat = async () => {
+    if (!selectedRecipient?.conversationId) return;
+    
+    const confirmed = window.confirm('Are you sure you want to clear this chat? This action cannot be undone.');
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/messages/conversation/${selectedRecipient.conversationId}`);
+      setMessages([]);
+      fetchConversations(); // Refresh conversation list
+      toast.success('Chat cleared successfully');
+      setShowDropdown(false);
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+      toast.error('Failed to clear chat');
+    }
   };
 
   const sendMessage = async (e) => {
@@ -231,6 +313,10 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
       console.log('Success Message:', successMessage); // Debug log
       
       setMessages(prev => [...prev, successMessage]);
+      
+      // Refresh conversations to update last message and timestamps
+      fetchConversations();
+      
       toast.success('Message sent successfully!');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -263,7 +349,7 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     return (
       <div className="flex flex-col h-full bg-white dark:bg-gray-900">
         {/* Mobile Chat Header */}
-        <div className="flex items-center justify-between p-4 bg-primary-600 text-white">
+        <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-primary-600 text-white">
           <div className="flex items-center space-x-3">
             <button
               onClick={handleBackToContacts}
@@ -287,35 +373,62 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
               </div>
             </div>
           </div>
+          
+          {/* 3-dots menu */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="p-2 rounded-full hover:bg-primary-700 transition-colors"
+            >
+              <EllipsisVerticalIcon className="w-5 h-5" />
+            </button>
+            
+            {showDropdown && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+                <button
+                  onClick={handleClearChat}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Clear Chat
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-800">
-          {loading ? (
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+        <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800">
+          <div className="p-4 space-y-4 min-h-full flex flex-col">
+            <div className="flex-1">
+              {loading ? (
+                <div className="flex justify-center">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                  <p>No messages yet. Start the conversation!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <AnimatePresence>
+                    {messages.map((message, index) => (
+                      <ModernMessageBubble
+                        key={message.id || `message-${index}-${message.created_at || Date.now()}`}
+                        message={message}
+                        currentUser={user}
+                        isOwnMessage={message.sender_id === user.id}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
-          ) : messages.length === 0 ? (
-            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-              <p>No messages yet. Start the conversation!</p>
-            </div>
-          ) : (
-            <AnimatePresence>
-              {messages.map((message, index) => (
-                <ModernMessageBubble
-                  key={message.id || `message-${index}-${message.created_at || Date.now()}`}
-                  message={message}
-                  currentUser={user}
-                  isOwnMessage={message.sender_id === user.id}
-                />
-              ))}
-            </AnimatePresence>
-          )}
-          <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
-        {/* Message Input */}
-        <div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+        {/* Message Input - Fixed at bottom */}
+        <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4">
           <form onSubmit={sendMessage} className="flex items-center space-x-3">
             <div className="flex-1 relative">
               <input
@@ -373,7 +486,7 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
   }
 
   return (
-    <div className="flex h-full bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-lg">
+    <div className="flex h-full bg-white dark:bg-gray-900 overflow-hidden">
       {/* Contacts Sidebar - Hidden on mobile when chat is open */}
       <div className={`${isMobile && !showContactsList ? 'hidden' : 'flex'} ${isMobile ? 'w-full' : 'w-80'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col`}>
         {/* Header */}
@@ -397,22 +510,27 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
 
         {/* Contacts List */}
         <div className="flex-1 overflow-y-auto">
-          {filteredRecipients.length === 0 ? (
+          {loadingConversations ? (
+            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto mb-2"></div>
+              <p className="text-sm">Loading conversations...</p>
+            </div>
+          ) : filteredRecipients.length === 0 ? (
             <div className="p-6 text-center text-gray-500 dark:text-gray-400">
               <UserGroupIcon className="mx-auto h-8 w-8 mb-2" />
-              <p className="text-sm">No contacts found</p>
+              <p className="text-sm">No conversations found</p>
             </div>
           ) : (
             <div className="space-y-1 p-2">
               {filteredRecipients.map((recipient) => (
                 <motion.button
-                  key={recipient.id}
+                  key={recipient.uniqueKey || recipient.id}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleRecipientSelect(recipient)}
                   className={`
                     w-full flex items-center space-x-3 p-4 text-left transition-all duration-200 rounded-xl
-                    ${selectedRecipient?.id === recipient.id
+                    ${selectedRecipient?.conversationId === recipient.conversationId
                       ? 'bg-primary-50 dark:bg-primary-900 border-l-4 border-primary-500'
                       : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                     }
@@ -421,7 +539,7 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
                   <div className="relative">
                     <div className={`
                       w-12 h-12 rounded-full flex items-center justify-center font-semibold text-sm
-                      ${selectedRecipient?.id === recipient.id
+                      ${selectedRecipient?.conversationId === recipient.conversationId
                         ? 'bg-primary-100 dark:bg-primary-800 text-primary-700 dark:text-primary-300'
                         : 'bg-gradient-to-br from-blue-500 to-purple-600 text-white'
                       }
@@ -436,7 +554,15 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
                       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {recipient.name}
                       </p>
-                      <span className="text-xs text-gray-400">12:30 PM</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-gray-400">
+                          {recipient.lastMessageTime ? new Date(recipient.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                        {/* Green unread indicator */}
+                        {recipient.unreadCount > 0 && (
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        )}
+                      </div>
                     </div>
                     
                     {recipient.studentName && (
@@ -445,9 +571,18 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
                       </p>
                     )}
                     
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {recipient.type === 'teacher' ? '👩‍🏫 Teacher' : '👨‍👩‍👧‍👦 Parent'}
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate flex-1">
+                        {recipient.lastMessage ? recipient.lastMessage.substring(0, 40) + (recipient.lastMessage.length > 40 ? '...' : '') : 
+                         recipient.type === 'teacher' ? '👩‍🏫 Teacher' : '👨‍👩‍👧‍👦 Parent'}
+                      </p>
+                      {/* Unread count indicator */}
+                      {recipient.unreadCount > 0 && (
+                        <span className="text-xs font-bold text-green-600 dark:text-green-400 ml-2">
+                          {recipient.unreadCount > 99 ? '99+' : recipient.unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   
                   {recipient.type === 'group' && (
@@ -464,11 +599,11 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
 
       {/* Desktop Chat Area */}
       {!isMobile && (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col h-full">
           {selectedRecipient ? (
             <>
               {/* Chat Header */}
-              <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+              <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -487,36 +622,63 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
                       )}
                     </div>
                   </div>
+                  
+                  {/* 3-dots menu */}
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setShowDropdown(!showDropdown)}
+                      className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <EllipsisVerticalIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    </button>
+                    
+                    {showDropdown && (
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+                        <button
+                          onClick={handleClearChat}
+                          className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          Clear Chat
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-800">
-                {loading ? (
-                  <div className="flex justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+              <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800">
+                <div className="min-h-full flex flex-col justify-end">
+                  <div className="p-4 space-y-4">
+                    {loading ? (
+                      <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                      </div>
+                    ) : messages.length === 0 ? (
+                      <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                        <p>No messages yet. Start the conversation!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <AnimatePresence>
+                          {messages.map((message, index) => (
+                            <ModernMessageBubble
+                              key={message.id || `desktop-message-${index}-${message.created_at || Date.now()}`}
+                              message={message}
+                              currentUser={user}
+                              isOwnMessage={message.sender_id === user.id}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    )}
                   </div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                    <p>No messages yet. Start the conversation!</p>
-                  </div>
-                ) : (
-                  <AnimatePresence>
-                    {messages.map((message, index) => (
-                      <ModernMessageBubble
-                        key={message.id || `desktop-message-${index}-${message.created_at || Date.now()}`}
-                        message={message}
-                        currentUser={user}
-                        isOwnMessage={message.sender_id === user.id}
-                      />
-                    ))}
-                  </AnimatePresence>
-                )}
-                <div ref={messagesEndRef} />
+                  <div ref={messagesEndRef} />
+                </div>
               </div>
 
-              {/* Message Input */}
-              <div className="bg-white dark:bg-gray-800 p-4">
+              {/* Message Input - Fixed at bottom */}
+              <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
                 <form onSubmit={sendMessage} className="flex items-center space-x-3">
                   <div className="flex-1 relative">
                     <input
@@ -585,6 +747,147 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Mobile Chat Area - Only show when a conversation is selected */}
+      {isMobile && !showContactsList && selectedRecipient && (
+        <div className="flex-1 flex flex-col h-full bg-white dark:bg-gray-900">
+          {/* Mobile Chat Header */}
+          <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setShowContactsList(true)}
+                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </button>
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="font-semibold text-white text-xs">
+                    {getInitials(selectedRecipient.name)}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {selectedRecipient.name}
+                  </h3>
+                  {selectedRecipient.studentName && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Re: {selectedRecipient.studentName}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Mobile 3-dots menu */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <EllipsisVerticalIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                </button>
+                
+                {showDropdown && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+                    <button
+                      onClick={handleClearChat}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      Clear Chat
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Messages */}
+          <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800">
+            <div className="min-h-full flex flex-col justify-end">
+              <div className="p-4 space-y-4">
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    <p>No messages yet. Start the conversation!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <AnimatePresence>
+                      {messages.map((message, index) => (
+                        <ModernMessageBubble
+                          key={message.id || `mobile-message-${index}-${message.created_at || Date.now()}`}
+                          message={message}
+                          currentUser={user}
+                          isOwnMessage={message.sender_id === user.id}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Mobile Message Input - Fixed at bottom */}
+          <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+            <form onSubmit={sendMessage} className="flex items-center space-x-3">
+              <div className="flex-1 relative">
+                <input
+                  ref={textareaRef}
+                  type="text"
+                  value={messageContent}
+                  onChange={(e) => setMessageContent(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type your message..."
+                  className="w-full py-3 px-4 bg-gray-100 dark:bg-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-900 dark:text-gray-100"
+                />
+                
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <FaceSmileIcon className="h-5 w-5" />
+                </button>
+
+                {showEmojiPicker && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute bottom-full right-0 mb-2 p-3 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+                  >
+                    <div className="grid grid-cols-5 gap-2">
+                      {commonEmojis.map((emoji, index) => (
+                        <button
+                          key={`mobile-emoji-${emoji}-${index}`}
+                          type="button"
+                          onClick={() => addEmoji(emoji)}
+                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-lg"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+              
+              <button
+                type="submit"
+                disabled={!messageContent.trim()}
+                className="w-12 h-12 bg-primary-600 text-white rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
+              >
+                <PaperAirplaneIcon className="h-5 w-5" />
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>

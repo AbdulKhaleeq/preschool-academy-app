@@ -85,7 +85,7 @@ const TeacherDashboard = ({ user }) => {
         return <TeacherActivities user={user} />;
       case 'messages':
         return (
-          <div className="h-full">
+          <div className="h-full w-full">
             <MessageComposer
               user={user}
               contacts={teacherContacts}
@@ -273,8 +273,8 @@ const TeacherDashboard = ({ user }) => {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <div className="flex-1 p-4 md:p-6 overflow-y-auto">
-            <div className="max-w-7xl mx-auto">
+          <div className={`flex-1 overflow-y-auto ${activeTab === 'messages' ? '' : 'p-4 md:p-6'}`}>
+            <div className={activeTab === 'messages' ? '' : 'max-w-7xl mx-auto'}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
@@ -282,7 +282,7 @@ const TeacherDashboard = ({ user }) => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.2 }}
-                  className="h-full"
+                  className={activeTab === 'messages' ? 'h-full w-full' : 'h-full'}
                 >
                   {renderTabContent()}
                 </motion.div>

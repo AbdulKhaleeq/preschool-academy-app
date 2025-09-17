@@ -8,17 +8,15 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
   const [formData, setFormData] = useState({
     name: '',
     age: '',
-    mother_phone: '',
-    father_phone: '',
-    teacher_name: '',
+    parent_phone: '',
+    teacher_id: '',
     class_name: '',
     date_of_birth: '',
     emergency_contact: '',
     medical_notes: '',
     program: '',
     fee_amount: '',
-    notes: '',
-    primary_contact: 'mother'
+    notes: ''
   });
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,7 +31,7 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
 
   const fetchTeachers = async () => {
     try {
-      const { data } = await api.get('/teachers');
+      const { data } = await api.get('/teachers/users');
       if (data.success) {
         setTeachers(data.teachers);
       }
@@ -47,17 +45,15 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
     setFormData({
       name: '',
       age: '',
-      mother_phone: '',
-      father_phone: '',
-      teacher_name: '',
+      parent_phone: '',
+      teacher_id: '',
       class_name: '',
       date_of_birth: '',
       emergency_contact: '',
       medical_notes: '',
       program: '',
       fee_amount: '',
-      notes: '',
-      primary_contact: 'mother'
+      notes: ''
     });
     setErrors({});
   };
@@ -76,9 +72,8 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
     if (!formData.age || formData.age < 1 || formData.age > 18) newErrors.age = 'Age must be between 1 and 18';
     if (!formData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required';
     if (!formData.class_name.trim()) newErrors.class_name = 'Class name is required';
-    if (!formData.teacher_name) newErrors.teacher_name = 'Please select a teacher';
-    if (!formData.mother_phone.trim()) newErrors.mother_phone = 'Mother\'s phone is required';
-    if (!formData.father_phone.trim()) newErrors.father_phone = 'Father\'s phone is required';
+    if (!formData.teacher_id) newErrors.teacher_id = 'Please select a teacher';
+    if (!formData.parent_phone.trim()) newErrors.parent_phone = 'Parent phone is required';
     if (!formData.program) newErrors.program = 'Program is required';
     
     setErrors(newErrors);
@@ -91,10 +86,8 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
     
     setLoading(true);
     try {
-      const parentPhone = formData.primary_contact === 'father' ? formData.father_phone : formData.mother_phone;
       const studentData = {
         ...formData,
-        parent_phone: parentPhone,
         age: parseInt(formData.age)
       };
       
@@ -117,18 +110,13 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
   };
 
   const teacherOptions = teachers.map(teacher => ({
-    value: teacher.name,
-    label: `${teacher.name} - ${teacher.class_name || 'No class'}`
+    value: teacher.id,
+    label: `${teacher.name} - ${teacher.phone_number || 'No phone'}`
   }));
 
   const programOptions = [
     { value: 'School', label: 'School' },
     { value: 'Tuition', label: 'Tuition' }
-  ];
-
-  const contactOptions = [
-    { value: 'mother', label: 'Mother' },
-    { value: 'father', label: 'Father' }
   ];
 
   return (
@@ -208,11 +196,11 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
                   label="Teacher"
-                  name="teacher_name"
-                  value={formData.teacher_name}
+                  name="teacher_id"
+                  value={formData.teacher_id}
                   onChange={handleInputChange}
                   options={teacherOptions}
-                  error={errors.teacher_name}
+                  error={errors.teacher_id}
                   required
                   placeholder="Select teacher"
                 />
@@ -236,34 +224,14 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="Mother's Phone"
-                  name="mother_phone"
+                  label="Parent Phone"
+                  name="parent_phone"
                   type="tel"
-                  value={formData.mother_phone}
+                  value={formData.parent_phone}
                   onChange={handleInputChange}
-                  error={errors.mother_phone}
+                  error={errors.parent_phone}
                   required
                   placeholder="+919876543210"
-                />
-                
-                <Input
-                  label="Father's Phone"
-                  name="father_phone"
-                  type="tel"
-                  value={formData.father_phone}
-                  onChange={handleInputChange}
-                  error={errors.father_phone}
-                  required
-                  placeholder="+919876543210"
-                />
-                
-                <Select
-                  label="Primary Contact"
-                  name="primary_contact"
-                  value={formData.primary_contact}
-                  onChange={handleInputChange}
-                  options={contactOptions}
-                  required
                 />
                 
                 <Input
