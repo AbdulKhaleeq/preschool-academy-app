@@ -111,14 +111,12 @@ const runMigrations = async () => {
       id SERIAL PRIMARY KEY,
       title TEXT NOT NULL,
       description TEXT,
-      scheduled_at TIMESTAMP,
-      teacher_id INT REFERENCES users(id) ON DELETE CASCADE,
-      class_name TEXT,
-      activity_date DATE NOT NULL DEFAULT CURRENT_DATE,
-      activity_time TIME,
+      teacher_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      start_date DATE NOT NULL,
+      end_date DATE,
       is_completed BOOLEAN DEFAULT FALSE,
       created_by_name TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
+      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
     );
   `);
 
