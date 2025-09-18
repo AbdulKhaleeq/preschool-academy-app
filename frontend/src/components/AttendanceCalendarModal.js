@@ -11,7 +11,7 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { Card, Button, Badge } from './ui';
-import api from '../api';
+import api, { formatDateForAPI } from '../api';
 import toast from 'react-hot-toast';
 
 const AttendanceCalendarModal = ({ isOpen, onClose, student, isTeacher = false }) => {
@@ -76,7 +76,7 @@ const AttendanceCalendarModal = ({ isOpen, onClose, student, isTeacher = false }
   const toggleAttendance = async (date) => {
     if (!isTeacher) return;
     
-    const dateKey = date.toISOString().split('T')[0];
+    const dateKey = formatDateForAPI(date);
     const currentStatus = attendanceData[dateKey];
     const newStatus = currentStatus === 'present' ? 'absent' : 'present';
     
@@ -102,7 +102,7 @@ const AttendanceCalendarModal = ({ isOpen, onClose, student, isTeacher = false }
   const handleAddNote = (date) => {
     if (!isTeacher) return;
     
-    const dateKey = date.toISOString().split('T')[0];
+    const dateKey = formatDateForAPI(date);
     setNoteDate(dateKey);
     setNoteContent(notesData[dateKey] || '');
     setShowNoteModal(true);
@@ -157,7 +157,7 @@ const AttendanceCalendarModal = ({ isOpen, onClose, student, isTeacher = false }
 
   const getDataForDate = (date) => {
     if (!date) return { attendance: null, hasNote: false };
-    const dateKey = date.toISOString().split('T')[0];
+    const dateKey = formatDateForAPI(date);
     return {
       attendance: attendanceData[dateKey],
       hasNote: !!notesData[dateKey],

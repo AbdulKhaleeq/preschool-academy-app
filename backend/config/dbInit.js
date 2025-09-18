@@ -112,6 +112,11 @@ const runMigrations = async () => {
       title TEXT NOT NULL,
       description TEXT,
       scheduled_at TIMESTAMP,
+      teacher_id INT REFERENCES users(id) ON DELETE CASCADE,
+      class_name TEXT,
+      activity_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      activity_time TIME,
+      is_completed BOOLEAN DEFAULT FALSE,
       created_by_name TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     );
@@ -151,6 +156,15 @@ const runMigrations = async () => {
   await pool.query('CREATE INDEX IF NOT EXISTS idx_students_class_name ON students(class_name);');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_messages_participants ON messages(sender_id, receiver_id);');
+  
+  // Create activities indexes only if columns exist (they might be added via migration)
+  try {
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_activities_teacher ON activities(teacher_id);');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(activity_date);');
+  } catch (error) {
+    // Ignore index creation errors for activities (columns might not exist yet)
+    console.log('Activities indexes will be created after migration');
+  }
 };
 
 module.exports = { runMigrations };

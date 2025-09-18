@@ -266,7 +266,7 @@ function App() {
                       Demo Login:
                     </h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Phone: +919876543210
+                      Phone: 9876543210
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       OTP will be shown after requesting

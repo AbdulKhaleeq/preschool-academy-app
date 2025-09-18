@@ -21,6 +21,12 @@ const EditUserModal = ({ isOpen, onClose, user, onUpdated }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const roleOptions = [
+    { value: 'parent', label: 'Parent' },
+    { value: 'teacher', label: 'Teacher' },
+    { value: 'admin', label: 'Administrator' }
+  ];
+
   useEffect(() => {
     if (isOpen && user) {
       setForm({ 
@@ -35,10 +41,21 @@ const EditUserModal = ({ isOpen, onClose, user, onUpdated }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
-    }));
+    
+    // Restrict phone number field to 10 digits only
+    if (name === 'phone_number') {
+      // Remove all non-digit characters and limit to 10 digits
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+      setForm(prev => ({ 
+        ...prev, 
+        [name]: digitsOnly 
+      }));
+    } else {
+      setForm(prev => ({ 
+        ...prev, 
+        [name]: type === 'checkbox' ? checked : value 
+      }));
+    }
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -84,9 +101,7 @@ const EditUserModal = ({ isOpen, onClose, user, onUpdated }) => {
       const cleanedPhone = form.phone_number.replace(/\D/g, '');
       const payload = { ...form, phone_number: cleanedPhone };
       
-      console.log("Updating user:", user.id, payload);
       const { data } = await api.put(`/users/${user.id}`, payload);
-      console.log("Update response:", data);
       
       if (data.success) {
         toast.success('User updated successfully!');
@@ -133,7 +148,7 @@ const EditUserModal = ({ isOpen, onClose, user, onUpdated }) => {
       title={`Edit User - ${user.name}`}
       size="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form id="edit-user-form" onSubmit={handleSubmit} className="space-y-6">
         {/* User Information */}
         <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
           <div className="flex items-center space-x-2 mb-3">
@@ -162,8 +177,9 @@ const EditUserModal = ({ isOpen, onClose, user, onUpdated }) => {
               onChange={handleChange}
               error={errors.phone_number}
               required
-              placeholder="Enter 10-digit phone number"
+              placeholder="9876543210"
               maxLength="10"
+              pattern="[0-9]{10}"
             />
           </div>
         </div>
@@ -183,13 +199,10 @@ const EditUserModal = ({ isOpen, onClose, user, onUpdated }) => {
               name="role"
               value={form.role}
               onChange={handleChange}
+              options={roleOptions}
               error={errors.role}
               required
-            >
-              <option value="parent">Parent</option>
-              <option value="teacher">Teacher</option>
-              <option value="admin">Administrator</option>
-            </Select>
+            />
 
             {/* Role Information */}
             {currentRoleInfo && (
@@ -267,10 +280,12 @@ const EditUserModal = ({ isOpen, onClose, user, onUpdated }) => {
         </div>
 
         {/* Form Actions */}
-        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        </form>
+        
+        <Modal.Footer>
           <Button
             type="button"
-            variant="secondary"
+            variant="ghost"
             onClick={onClose}
             disabled={loading}
           >
@@ -278,13 +293,12 @@ const EditUserModal = ({ isOpen, onClose, user, onUpdated }) => {
           </Button>
           <Button
             type="submit"
+            form="edit-user-form"
             loading={loading}
-            className="px-6"
           >
             Update User
           </Button>
-        </div>
-      </form>
+        </Modal.Footer>
     </Modal>
   );
 };

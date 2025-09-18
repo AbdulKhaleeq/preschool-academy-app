@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../api';
+import api, { formatDateForAPI } from '../api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeftIcon,
@@ -19,6 +19,7 @@ const ReportsPage = ({ student, user, onBack }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedAttendance, setSelectedAttendance] = useState('present');
   const [selectedNote, setSelectedNote] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
@@ -27,7 +28,7 @@ const ReportsPage = ({ student, user, onBack }) => {
 
   // Date formatting functions
   const formatDate = (date) => {
-    return date.toISOString().split('T')[0];
+    return formatDateForAPI(date);
   };
 
   const formatDisplayDate = (date) => {
@@ -41,7 +42,7 @@ const ReportsPage = ({ student, user, onBack }) => {
 
   useEffect(() => {
     loadData();
-  }, [student]);
+  }, [student]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadData = async () => {
     if (!student) return;
@@ -62,19 +63,19 @@ const ReportsPage = ({ student, user, onBack }) => {
         const notesMap = {};
         
         reports.forEach(report => {
-          // Normalize date key - handle both date strings and datetime strings
+          console.log('=== LOAD DEBUG ===');
+          console.log('Raw report from backend:', report);
+          
+          // Since backend now returns report_date as YYYY-MM-DD string, use it directly
           let dateKey;
           if (report.report_date) {
-            // If it's already a date string like "2025-09-08", use it directly
-            if (report.report_date.includes('T')) {
-              // If it contains time, extract just the date part
-              dateKey = report.report_date.split('T')[0];
-            } else {
-              dateKey = report.report_date;
-            }
+            console.log('report.report_date:', report.report_date, 'type:', typeof report.report_date);
+            dateKey = report.report_date; // Should now be a clean YYYY-MM-DD string
+            console.log('Using dateKey directly:', dateKey);
           } else {
             // Fallback to created_at
             dateKey = formatDate(new Date(report.created_at));
+            console.log('Used created_at fallback, dateKey:', dateKey);
           }
           
           console.log('Processing report for date:', dateKey, 'attendance:', report.attendance, 'notes:', report.notes);
@@ -117,6 +118,11 @@ const ReportsPage = ({ student, user, onBack }) => {
     setSaving(true);
     try {
       const dateKey = formatDate(selectedDate);
+      
+      console.log('=== SAVE DEBUG ===');
+      console.log('selectedDate object:', selectedDate);
+      console.log('selectedDate.toString():', selectedDate.toString());
+      console.log('formatDate result (dateKey):', dateKey);
       
       const reportData = {
         student_id: student.id,
@@ -207,6 +213,11 @@ const ReportsPage = ({ student, user, onBack }) => {
   };
 
   const handleDateSelect = (date) => {
+    console.log('=== DATE SELECT DEBUG ===');
+    console.log('Selected date object:', date);
+    console.log('Selected date.toString():', date.toString());
+    console.log('Selected date timezone offset:', date.getTimezoneOffset());
+    
     setSelectedDate(date);
     const data = getDataForDate(date);
     console.log('Selected date data:', data);

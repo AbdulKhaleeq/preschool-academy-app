@@ -31,7 +31,16 @@ const AddTeacherModal = ({ isOpen, onClose, onTeacherAdded }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Restrict phone number field to 10 digits only
+    if (name === 'phone_number') {
+      // Remove all non-digit characters and limit to 10 digits
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({ ...prev, [name]: digitsOnly }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -40,8 +49,17 @@ const AddTeacherModal = ({ isOpen, onClose, onTeacherAdded }) => {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.phone_number.trim()) newErrors.phone_number = 'Phone number is required';
     if (!formData.class_name.trim()) newErrors.class_name = 'Class name is required';
+    
+    // Phone number validation
+    if (!formData.phone_number.trim()) {
+      newErrors.phone_number = 'Phone number is required';
+    } else if (formData.phone_number.length !== 10) {
+      newErrors.phone_number = 'Phone number must be exactly 10 digits';
+    } else if (!/^\d{10}$/.test(formData.phone_number)) {
+      newErrors.phone_number = 'Phone number must contain only digits';
+    }
+    
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
@@ -131,7 +149,9 @@ const AddTeacherModal = ({ isOpen, onClose, onTeacherAdded }) => {
                   onChange={handleInputChange}
                   error={errors.phone_number}
                   required
-                  placeholder="+919876543210"
+                  placeholder="9876543210"
+                  maxLength="10"
+                  pattern="[0-9]{10}"
                 />
                 
                 <Input

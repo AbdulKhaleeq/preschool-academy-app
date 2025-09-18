@@ -81,7 +81,17 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Phone number validation - only allow digits and limit to 10 characters
+    if (name === 'parent_phone' || name === 'emergency_contact') {
+      const digitsOnly = value.replace(/\D/g, '');
+      if (digitsOnly.length <= 10) {
+        setFormData(prev => ({ ...prev, [name]: digitsOnly }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -95,6 +105,10 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
     if (!formData.class_name.trim()) newErrors.class_name = 'Class name is required';
     if (!formData.teacher_id) newErrors.teacher_id = 'Please select a teacher';
     if (!formData.parent_phone.trim()) newErrors.parent_phone = 'Parent phone is required';
+    else if (formData.parent_phone.length !== 10) newErrors.parent_phone = 'Parent phone must be exactly 10 digits';
+    if (formData.emergency_contact && formData.emergency_contact.length !== 10) {
+      newErrors.emergency_contact = 'Emergency contact must be exactly 10 digits';
+    }
     if (!formData.program) newErrors.program = 'Program is required';
     
     setErrors(newErrors);
@@ -252,7 +266,9 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
                   onChange={handleInputChange}
                   error={errors.parent_phone}
                   required
-                  placeholder="+919876543210"
+                  placeholder="1234567890"
+                  maxLength="10"
+                  pattern="[0-9]{10}"
                 />
                 
                 <Input
@@ -261,7 +277,10 @@ const EditStudentModal = ({ isOpen, onClose, student, onSaved }) => {
                   type="tel"
                   value={formData.emergency_contact}
                   onChange={handleInputChange}
-                  placeholder="+919876543210"
+                  error={errors.emergency_contact}
+                  placeholder="1234567890"
+                  maxLength="10"
+                  pattern="[0-9]{10}"
                 />
               </div>
             </div>

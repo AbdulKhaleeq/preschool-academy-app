@@ -60,7 +60,16 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Restrict phone number fields to 10 digits only
+    if (name === 'parent_phone' || name === 'emergency_contact') {
+      // Remove all non-digit characters and limit to 10 digits
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({ ...prev, [name]: digitsOnly }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -73,8 +82,23 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
     if (!formData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required';
     if (!formData.class_name.trim()) newErrors.class_name = 'Class name is required';
     if (!formData.teacher_id) newErrors.teacher_id = 'Please select a teacher';
-    if (!formData.parent_phone.trim()) newErrors.parent_phone = 'Parent phone is required';
     if (!formData.program) newErrors.program = 'Program is required';
+    
+    // Parent phone validation
+    if (!formData.parent_phone.trim()) {
+      newErrors.parent_phone = 'Parent phone is required';
+    } else if (formData.parent_phone.length !== 10) {
+      newErrors.parent_phone = 'Parent phone must be exactly 10 digits';
+    } else if (!/^\d{10}$/.test(formData.parent_phone)) {
+      newErrors.parent_phone = 'Parent phone must contain only digits';
+    }
+    
+    // Emergency contact validation (optional but if provided must be valid)
+    if (formData.emergency_contact.trim() && formData.emergency_contact.length !== 10) {
+      newErrors.emergency_contact = 'Emergency contact must be exactly 10 digits';
+    } else if (formData.emergency_contact.trim() && !/^\d{10}$/.test(formData.emergency_contact)) {
+      newErrors.emergency_contact = 'Emergency contact must contain only digits';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -231,7 +255,9 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
                   onChange={handleInputChange}
                   error={errors.parent_phone}
                   required
-                  placeholder="+919876543210"
+                  placeholder="9876543210"
+                  maxLength="10"
+                  pattern="[0-9]{10}"
                 />
                 
                 <Input
@@ -240,7 +266,10 @@ const AddStudentModal = ({ isOpen, onClose, onStudentAdded }) => {
                   type="tel"
                   value={formData.emergency_contact}
                   onChange={handleInputChange}
-                  placeholder="+919876543210"
+                  error={errors.emergency_contact}
+                  placeholder="9876543210"
+                  maxLength="10"
+                  pattern="[0-9]{10}"
                 />
               </div>
             </div>

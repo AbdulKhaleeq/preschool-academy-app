@@ -16,7 +16,9 @@ import {
   CurrencyDollarIcon,
   DocumentTextIcon,
   TrophyIcon,
-  Bars3Icon
+  Bars3Icon,
+  CheckCircleIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 const ParentDashboard = ({ user }) => {
@@ -47,7 +49,7 @@ const ParentDashboard = ({ user }) => {
       fetchMyMessages();
       fetchParentContacts();
     }
-    if (activeTab === 'schedule') {
+    if (activeTab === 'activities') {
       fetchAnnouncementsAndActivities();
     }
   }, [activeTab, user]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -155,7 +157,7 @@ const ParentDashboard = ({ user }) => {
       if (ann.data && ann.data.success) setAnnouncements(ann.data.announcements || []);
       if (act.data && act.data.success) setActivities(act.data.activities || []);
     } catch (err) {
-      console.error('Error fetching schedule data:', err);
+      console.error('Error fetching activities and announcements data:', err);
     } finally {
       setLoading(false);
     }
@@ -172,19 +174,47 @@ const ParentDashboard = ({ user }) => {
     setSidebarOpen(false);
   };
 
+  // Load overview data immediately on mount
+  useEffect(() => {
+    const loadOverviewData = async () => {
+      try {
+        setLoading(true);
+        // Load data needed for overview: students, messages, activities, announcements, and pending dues
+        await Promise.all([
+          fetchMyChildren(),
+          fetchMyMessages(),
+          fetchAnnouncementsAndActivities(),
+          fetchTotalPendingDues()
+        ]);
+      } catch (error) {
+        console.error('Error loading overview data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadOverviewData();
+  }, [user]); // Only run when user changes
+
   const sidebarItems = [
     { id: 'overview', label: 'Overview', icon: HomeIcon },
     { id: 'children', label: 'My Children', icon: UserGroupIcon },
     { id: 'messages', label: 'Messages', icon: ChatBubbleLeftRightIcon },
     { id: 'dues', label: 'Pending Dues', icon: CurrencyDollarIcon },
-    { id: 'schedule', label: 'Schedule', icon: CalendarIcon },
+    { id: 'activities', label: 'Activities', icon: CalendarIcon },
     { id: 'announcements', label: 'Announcements', icon: MegaphoneIcon },
   ];
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <OverviewContent students={students} messages={messages} totalPendingDues={totalPendingDues} />;
+        return <OverviewContent 
+          students={students} 
+          messages={messages} 
+          activities={activities}
+          announcements={announcements}
+          totalPendingDues={totalPendingDues} 
+        />;
       case 'children':
         return (
           <ChildrenContent
@@ -216,8 +246,8 @@ const ParentDashboard = ({ user }) => {
         );
       case 'dues':
         return <PendingDues user={user} />;
-      case 'schedule':
-        return <ScheduleContent activities={activities} loading={loading} />;
+      case 'activities':
+        return <ActivitiesContent activities={activities} loading={loading} />;
       case 'announcements':
         return <AnnouncementsView />;
       default:
@@ -415,7 +445,7 @@ const ParentDashboard = ({ user }) => {
 };
 
 // Overview Content Component
-const OverviewContent = ({ students, messages, totalPendingDues }) => {
+const OverviewContent = ({ students, messages, activities, announcements, totalPendingDues }) => {
   const formatCurrency = (amount) => {
     return `₹${Number(amount || 0).toLocaleString()}`;
   };
@@ -423,7 +453,8 @@ const OverviewContent = ({ students, messages, totalPendingDues }) => {
   const stats = [
     { title: 'My Children', value: students.length, icon: UserGroupIcon, color: 'text-blue-600', bg: 'bg-blue-100' },
     { title: 'Messages', value: messages.length, icon: ChatBubbleLeftRightIcon, color: 'text-green-600', bg: 'bg-green-100' },
-    { title: 'Upcoming Events', value: 3, icon: CalendarIcon, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { title: 'Activities', value: activities.length, icon: CalendarIcon, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { title: 'Announcements', value: announcements.length, icon: MegaphoneIcon, color: 'text-indigo-600', bg: 'bg-indigo-100' },
     { title: 'Pending Fees', value: formatCurrency(totalPendingDues), icon: CurrencyDollarIcon, color: 'text-orange-600', bg: 'bg-orange-100' },
   ];
 
@@ -438,7 +469,7 @@ const OverviewContent = ({ students, messages, totalPendingDues }) => {
         </p>
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -582,20 +613,31 @@ const ChildrenContent = ({ students, loading, error, examResults, onPerformanceC
   );
 };
 
-// Schedule Content Component
-const ScheduleContent = ({ activities, loading }) => {
+// Activities Content Component
+const ActivitiesContent = ({ activities, loading }) => {
   if (loading) {
     return <div className="text-center py-8"><LoadingSpinner size="lg" /></div>;
   }
+
+  // Group activities by date using start_date
+  const groupedActivities = activities.reduce((groups, activity) => {
+    const date = new Date(activity.start_date).toDateString();
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(activity);
+    return groups;
+  }, {});
+
+  // Sort dates
+  const sortedDates = Object.keys(groupedActivities).sort((a, b) => new Date(a) - new Date(b));
 
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="mb-4 md:mb-6">
         <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-          Schedule & Activities
+          Activities
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Today's activities and upcoming events
+          Your children's daily activities and lessons
         </p>
       </div>
       
@@ -605,36 +647,112 @@ const ScheduleContent = ({ activities, loading }) => {
           <p className="text-gray-500 dark:text-gray-400">No activities scheduled</p>
         </Card>
       ) : (
-        <div className="space-y-3 md:space-y-4">
-          {activities.map((activity, index) => (
-            <motion.div
-              key={activity.id || index}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <Card className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                      {activity.activity_name || activity.name}
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {activity.description}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {activity.time}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {activity.date}
-                    </div>
-                  </div>
+        <div className="space-y-6">
+          {sortedDates.map((dateString, dateIndex) => {
+            const date = new Date(dateString);
+            const isToday = date.toDateString() === new Date().toDateString();
+            const isPast = date < new Date().setHours(0, 0, 0, 0);
+            
+            return (
+              <div key={dateString} className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <h3 className={`text-lg font-semibold ${
+                    isToday ? 'text-blue-600 dark:text-blue-400' : 
+                    isPast ? 'text-gray-500 dark:text-gray-400' : 
+                    'text-gray-900 dark:text-gray-100'
+                  }`}>
+                    {isToday ? 'Today' : date.toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </h3>
+                  {isToday && (
+                    <Badge variant="info" className="text-xs">Current</Badge>
+                  )}
                 </div>
-              </Card>
-            </motion.div>
-          ))}
+                
+                <div className="space-y-2">
+                  {groupedActivities[dateString]
+                    .map((activity, index) => (
+                    <motion.div
+                      key={activity.id || index}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: (dateIndex * 0.1) + (index * 0.05) }}
+                    >
+                      <Card className={`p-4 ${activity.is_completed ? 'bg-green-50 dark:bg-green-900/10' : ''}`}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-1">
+                              <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                                {activity.title}
+                              </h4>
+                              {activity.is_completed && (
+                                <Badge variant="success" className="text-xs">
+                                  <CheckCircleIcon className="w-3 h-3 mr-1" />
+                                  Completed
+                                </Badge>
+                              )}
+                            </div>
+                            {activity.description && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                {activity.description}
+                              </p>
+                            )}
+                            <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400 mb-2">
+                              <span>📅 {new Date(activity.start_date).toLocaleDateString()}</span>
+                              {activity.end_date && (
+                                <span>→ {new Date(activity.end_date).toLocaleDateString()}</span>
+                              )}
+                              {activity.teacher_name && (
+                                <span>�‍🏫 {activity.teacher_name}</span>
+                              )}
+                            </div>
+                            
+                            {/* Student Progress for Parent View */}
+                            {activity.students && activity.students.length > 0 && (
+                              <div className="border-t pt-2 mt-2">
+                                <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                  Your Children:
+                                </h5>
+                                <div className="space-y-1">
+                                  {activity.students.map(student => (
+                                    <div key={student.id} className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-700 dark:text-gray-300">
+                                        {student.name}
+                                      </span>
+                                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                                        student.is_completed
+                                          ? 'bg-green-100 text-green-700'
+                                          : 'bg-gray-100 text-gray-600'
+                                      }`}>
+                                        {student.is_completed ? (
+                                          <>
+                                            <CheckCircleIcon className="w-3 h-3" />
+                                            Done
+                                          </>
+                                        ) : (
+                                          <>
+                                            <ClockIcon className="w-3 h-3" />
+                                            Pending
+                                          </>
+                                        )}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -59,13 +59,11 @@ const AdminDashboard = ({ user }) => {
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [editStudent, setEditStudent] = useState(null);
-  const [programReport, setProgramReport] = useState([]);
-
+  
   useEffect(() => {
     if (activeTab === 'students') fetchStudents();
     if (activeTab === 'teachers') fetchTeachers();
     if (activeTab === 'users') fetchUsers();
-    if (activeTab === 'reports') fetchReports();
   }, [activeTab]);
 
   const fetchStudents = async () => {
@@ -106,17 +104,26 @@ const AdminDashboard = ({ user }) => {
     }
   };
 
-  const fetchReports = async () => {
-    try {
-      setLoading(true);
-      const { data } = await api.get('/reports/students-by-program');
-      if (data.success) setProgramReport(data.data || []);
-    } catch (e) {
-      setError('Error fetching reports');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Load overview data immediately on mount
+  useEffect(() => {
+    const loadOverviewData = async () => {
+      try {
+        setLoading(true);
+        // Load data needed for overview: students, teachers, and users
+        await Promise.all([
+          fetchStudents(),
+          fetchTeachers(), 
+          fetchUsers()
+        ]);
+      } catch (error) {
+        console.error('Error loading admin overview data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadOverviewData();
+  }, []); // Run once on mount
 
   // Event handlers
   const handleTeacherAdded = () => {
@@ -254,7 +261,6 @@ const AdminDashboard = ({ user }) => {
     { id: 'teachers', label: 'Teachers', icon: UserGroupIcon },
     { id: 'users', label: 'Users', icon: UsersIcon },
     { id: 'financials', label: 'Financials', icon: CurrencyDollarIcon },
-    { id: 'reports', label: 'Reports', icon: ChartBarIcon },
     { id: 'announcements', label: 'Announcements', icon: MegaphoneIcon },
   ];
 
@@ -295,7 +301,56 @@ const AdminDashboard = ({ user }) => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+            >
+              <Bars3Icon className="w-5 h-5" />
+            </button>
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <UsersIcon className="w-3 h-3 text-white" />
+              </div>
+              <h1 className="text-lg font-semibold text-gray-900">
+                Admin Panel
+              </h1>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Navigation Tabs */}
+      <div className="lg:hidden bg-white border-b border-gray-200">
+        <div className="grid grid-cols-6 gap-0">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setSidebarOpen(false);
+                }}
+                className={`
+                  flex items-center justify-center px-1 py-3 border-b-2 transition-all duration-200
+                  ${activeTab === item.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }
+                `}
+              >
+                <Icon className="w-5 h-5" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
@@ -304,15 +359,20 @@ const AdminDashboard = ({ user }) => {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Mobile Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:hidden
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex items-center justify-center h-16 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">
-            Admin Panel
-          </h2>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <UsersIcon className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">
+              Admin Panel
+            </h2>
+          </div>
         </div>
 
         <nav className="mt-8 px-4">
@@ -336,122 +396,155 @@ const AdminDashboard = ({ user }) => {
                   }
                 `}
               >
-                <Icon className="h-5 w-5" />
-                <span className="font-medium">{item.label}</span>
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm font-medium">{item.label}</span>
               </motion.button>
             );
           })}
         </nav>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile header */}
-        <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg text-gray-600 hover:bg-gray-100"
-          >
-            <Bars3Icon className="h-6 w-6" />
-          </button>
-          {/* Hide title on mobile to reduce redundancy */}
-        </div>
-
-        {/* Content header - more compact on mobile */}
-        <div className="bg-white border-b border-gray-200 p-4 sm:p-6">
-          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                {sidebarItems.find(item => item.id === activeTab)?.label}
-              </h1>
-              <p className="text-sm sm:text-base text-gray-600">
-                Manage your school's {activeTab}
-              </p>
-            </div>
-
-            {(activeTab === 'students' || activeTab === 'teachers' || activeTab === 'users') && (
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
-                <div className="relative flex-1 sm:flex-none">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder={`Search ${activeTab}...`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:flex lg:w-64 lg:flex-col">
+          <div className="flex-1 flex flex-col min-h-0 bg-white border-r border-gray-200">
+            <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+              <div className="flex items-center flex-shrink-0 px-4 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <UsersIcon className="w-5 h-5 text-white" />
                 </div>
-                
-                {/* Program Filter for Students */}
-                {activeTab === 'students' && (
-                  <div className="relative flex-shrink-0">
-                    <select
-                      value={programFilter}
-                      onChange={(e) => setProgramFilter(e.target.value)}
-                      className="w-full sm:w-auto pl-3 pr-8 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer"
-                    >
-                      <option value="all">All Programs</option>
-                      <option value="tuition">Tuition</option>
-                      <option value="school">School</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                )}
+                <h1 className="ml-3 text-xl font-semibold text-gray-900">
+                  Admin Panel
+                </h1>
               </div>
-            )}
+              
+              <nav className="mt-5 flex-1 px-2 space-y-1">
+                {sidebarItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`
+                        w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-all duration-200
+                        ${activeTab === item.id
+                          ? 'bg-blue-100 text-blue-700 font-medium'
+                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        }
+                      `}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
           </div>
         </div>
 
-        {/* Content area */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              {activeTab === 'overview' && <OverviewContent students={students} teachers={teachers} users={users} />}
-              {activeTab === 'students' && <StudentsContent students={filteredStudents} loading={loading} onDelete={handleDeleteStudent} onEdit={setEditStudent} onViewPerformance={(student) => {
-                setSelectedStudent(student);
-                setCurrentView('performance');
-              }} onViewReports={(student) => {
-                setSelectedStudent(student);
-                setCurrentView('reports');
-              }} />}
-              {activeTab === 'teachers' && !teacherStudentsView && <TeachersContent teachers={filteredTeachers} loading={loading} onEdit={handleEditTeacher} onDelete={handleDeleteTeacher} onViewStudents={handleViewTeacherStudents} />}
-              {activeTab === 'teachers' && teacherStudentsView && <TeacherStudentsView 
-                user={teacherStudentsView} 
-                onBack={handleBackToTeachers} 
-                isAdmin={true}
-                onPerformanceClick={(student) => {
-                  setSelectedStudent(student);
-                  setCurrentView('performance');
-                }}
-                onReportsClick={(student) => {
-                  setSelectedStudent(student);
-                  setCurrentView('reports');
-                }}
-              />}
-              {activeTab === 'users' && <UsersContent users={filteredUsers} loading={loading} onToggleActive={handleToggleUserActive} onDelete={handleDeleteUser} onEdit={setEditUser} />}
-              {activeTab === 'financials' && <FinancialDashboard />}
-              {activeTab === 'reports' && <ReportsContent programReport={programReport} loading={loading} />}
-              {activeTab === 'announcements' && <AdminAnnouncements />}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Content header for non-overview tabs */}
+          {activeTab !== 'overview' && (
+            <div className="bg-white border-b border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                    {sidebarItems.find(item => item.id === activeTab)?.label}
+                  </h1>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Manage your school's {activeTab}
+                  </p>
+                </div>
 
-        {/* Floating Action Button */}
-        {addButtonConfig && (
-          <FloatingActionButton onClick={addButtonConfig.onClick}>
-            <PlusIcon className="h-6 w-6" />
-          </FloatingActionButton>
-        )}
+                {(activeTab === 'students' || activeTab === 'teachers' || activeTab === 'users') && (
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:flex-none">
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder={`Search ${activeTab}...`}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    
+                    {/* Program Filter for Students */}
+                    {activeTab === 'students' && (
+                      <div className="relative flex-shrink-0">
+                        <select
+                          value={programFilter}
+                          onChange={(e) => setProgramFilter(e.target.value)}
+                          className="w-full sm:w-auto pl-3 pr-8 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer"
+                        >
+                          <option value="all">All Programs</option>
+                          <option value="tuition">Tuition</option>
+                          <option value="school">School</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                          <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Content area */}
+          <div className={`flex-1 overflow-y-auto ${activeTab === 'overview' ? 'p-4 lg:p-6' : 'p-6'}`}>
+            <div className="max-w-7xl mx-auto">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full"
+                >
+                                    {activeTab === 'overview' && <OverviewContent students={students} teachers={teachers} users={users} onNavigateToTab={setActiveTab} onAddStudent={() => setIsAddStudentModalOpen(true)} onAddTeacher={() => setIsAddTeacherModalOpen(true)} onAddUser={() => setIsAddUserOpen(true)} />}
+                  {activeTab === 'students' && <StudentsContent students={filteredStudents} loading={loading} onDelete={handleDeleteStudent} onEdit={setEditStudent} onViewPerformance={(student) => {
+                    setSelectedStudent(student);
+                    setCurrentView('performance');
+                  }} onViewReports={(student) => {
+                    setSelectedStudent(student);
+                    setCurrentView('reports');
+                  }} />}
+                  {activeTab === 'teachers' && !teacherStudentsView && <TeachersContent teachers={filteredTeachers} loading={loading} onEdit={handleEditTeacher} onDelete={handleDeleteTeacher} onViewStudents={handleViewTeacherStudents} />}
+                  {activeTab === 'teachers' && teacherStudentsView && <TeacherStudentsView 
+                    user={teacherStudentsView} 
+                    onBack={handleBackToTeachers} 
+                    isAdmin={true}
+                    onPerformanceClick={(student) => {
+                      setSelectedStudent(student);
+                      setCurrentView('performance');
+                    }}
+                    onReportsClick={(student) => {
+                      setSelectedStudent(student);
+                      setCurrentView('reports');
+                    }}
+                  />}
+                  {activeTab === 'users' && <UsersContent users={filteredUsers} loading={loading} onToggleActive={handleToggleUserActive} onDelete={handleDeleteUser} onEdit={setEditUser} />}
+                  {activeTab === 'financials' && <FinancialDashboard />}
+                  {activeTab === 'announcements' && <AdminAnnouncements />}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Floating Action Button */}
+          {addButtonConfig && (
+            <FloatingActionButton onClick={addButtonConfig.onClick}>
+              <PlusIcon className="h-6 w-6" />
+            </FloatingActionButton>
+          )}
+        </div>
       </div>
 
       {/* Modals */}
@@ -475,7 +568,7 @@ const AdminDashboard = ({ user }) => {
       />
 
       <EditStudentModal 
-        isOpen={!!editStudent}
+        isOpen={editStudent}
         onClose={() => setEditStudent(null)}
         student={editStudent}
         onStudentUpdated={fetchStudents}
@@ -488,7 +581,7 @@ const AdminDashboard = ({ user }) => {
       />
 
       <EditUserModal 
-        isOpen={!!editUser}
+        isOpen={editUser}
         onClose={() => setEditUser(null)}
         user={editUser}
         onUserUpdated={fetchUsers}
@@ -507,43 +600,94 @@ const AdminDashboard = ({ user }) => {
 };
 
 // Overview Content Component
-const OverviewContent = ({ students, teachers, users }) => {
+const OverviewContent = ({ students, teachers, users, onNavigateToTab, onAddStudent, onAddTeacher, onAddUser }) => {
   const stats = [
     { title: 'Total Students', value: students.length, icon: AcademicCapIcon, color: 'text-blue-600', bg: 'bg-blue-100' },
     { title: 'Total Teachers', value: teachers.length, icon: UserGroupIcon, color: 'text-green-600', bg: 'bg-green-100' },
     { title: 'Total Users', value: users.length, icon: UsersIcon, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { title: 'Active Classes', value: 5, icon: ChartBarIcon, color: 'text-orange-600', bg: 'bg-orange-100' },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {stats.map((stat, index) => {
-        const Icon = stat.icon;
-        return (
-          <motion.div
-            key={stat.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+    <div className="space-y-6">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Admin Dashboard
+        </h2>
+        <p className="text-gray-600">
+          Welcome back! Here's your school's overview and quick actions.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <motion.div
+              key={stat.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card className="p-4 md:p-6">
+                <div className="flex items-center">
+                  <div className={`p-2 md:p-3 rounded-lg ${stat.bg}`}>
+                    <Icon className={`w-5 h-5 md:w-6 md:h-6 ${stat.color}`} />
+                  </div>
+                  <div className="ml-4">
+                    <div className="text-xl md:text-2xl font-bold text-gray-900">
+                      {stat.value}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {stat.title}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Quick Actions */}
+      <Card className="p-4 md:p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Quick Actions
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <Button 
+            variant="secondary" 
+            className="flex flex-col items-center justify-center p-4 h-20"
+            onClick={onAddStudent}
           >
-            <Card hover className="p-6">
-              <div className="flex items-center">
-                <div className={`p-3 rounded-lg ${stat.bg}`}>
-                  <Icon className={`h-6 w-6 ${stat.color}`} />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    {stat.title}
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {stat.value}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        );
-      })}
+            <AcademicCapIcon className="w-6 h-6 mb-2" />
+            <span className="text-sm">Add Student</span>
+          </Button>
+          <Button 
+            variant="secondary" 
+            className="flex flex-col items-center justify-center p-4 h-20"
+            onClick={onAddTeacher}
+          >
+            <UserGroupIcon className="w-6 h-6 mb-2" />
+            <span className="text-sm">Add Teacher</span>
+          </Button>
+          <Button 
+            variant="secondary" 
+            className="flex flex-col items-center justify-center p-4 h-20"
+            onClick={onAddUser}
+          >
+            <UsersIcon className="w-6 h-6 mb-2" />
+            <span className="text-sm">Add User</span>
+          </Button>
+          <Button 
+            variant="secondary" 
+            className="flex flex-col items-center justify-center p-4 h-20"
+            onClick={() => onNavigateToTab('financials')}
+          >
+            <CurrencyDollarIcon className="w-6 h-6 mb-2" />
+            <span className="text-sm">Financials</span>
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 };
@@ -797,40 +941,6 @@ const UsersContent = ({ users, loading, onToggleActive, onDelete, onEdit }) => {
         </table>
       </div>
     </Card>
-  );
-};
-
-// Reports Content Component
-const ReportsContent = ({ programReport, loading }) => {
-  if (loading) {
-    return <LoadingCard className="max-w-2xl mx-auto" />;
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          Students by Program
-        </h3>
-        {programReport.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400">No program data available.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {programReport.map((program, index) => (
-              <div key={index} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                  {program.program_name || 'Unknown Program'}
-                </h4>
-                <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                  {program.student_count}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">students enrolled</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
   );
 };
 

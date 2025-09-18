@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../api';
+import api, { formatDateForAPI } from '../api';
 import { Card, Button, Input, Select } from './ui';
 import ConfirmModal from './ConfirmModal';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -385,7 +385,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, onAddExpense, month, yea
     category: '',
     description: '',
     amount: '',
-    expense_date: new Date().toISOString().split('T')[0]
+    expense_date: formatDateForAPI(new Date())
   });
   const [loading, setLoading] = useState(false);
 
@@ -410,7 +410,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, onAddExpense, month, yea
           category: '',
           description: '',
           amount: '',
-          expense_date: new Date().toISOString().split('T')[0]
+          expense_date: formatDateForAPI(new Date())
         });
         onClose();
       }

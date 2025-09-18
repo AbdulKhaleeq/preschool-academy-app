@@ -28,10 +28,21 @@ const AddUserModal = ({ isOpen, onClose, onCreated }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
-    }));
+    
+    // Restrict phone number field to 10 digits only
+    if (name === 'phone_number') {
+      // Remove all non-digit characters and limit to 10 digits
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: digitsOnly 
+      }));
+    } else {
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: type === 'checkbox' ? checked : value 
+      }));
+    }
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -125,7 +136,7 @@ const AddUserModal = ({ isOpen, onClose, onCreated }) => {
       title="Add New User"
       size="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form id="add-user-form" onSubmit={handleSubmit} className="space-y-6">
         {/* User Information */}
         <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
           <div className="flex items-center space-x-2 mb-3">
@@ -154,8 +165,9 @@ const AddUserModal = ({ isOpen, onClose, onCreated }) => {
               onChange={handleChange}
               error={errors.phone_number}
               required
-              placeholder="Enter 10-digit phone number"
+              placeholder="9876543210"
               maxLength="10"
+              pattern="[0-9]{10}"
             />
           </div>
         </div>
@@ -236,25 +248,25 @@ const AddUserModal = ({ isOpen, onClose, onCreated }) => {
         </div>
 
         {/* Form Actions */}
-        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        </form>
+        
+        <Modal.Footer>
           <Button
             type="button"
-            variant="secondary"
+            variant="ghost"
             onClick={onClose}
             disabled={loading}
-            className="bg-gray-500 hover:bg-gray-600 text-white border-0"
           >
             Cancel
           </Button>
           <Button
             type="submit"
+            form="add-user-form"
             loading={loading}
-            className="px-6 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white border-0"
           >
-            Create User
+            Add User
           </Button>
-        </div>
-      </form>
+        </Modal.Footer>
     </Modal>
   );
 };

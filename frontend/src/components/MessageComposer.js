@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../api';
 import { Button, Badge } from './ui';
+import ConfirmModal from './ConfirmModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   PaperAirplaneIcon, 
@@ -26,6 +27,12 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
   const [conversations, setConversations] = useState([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  });
 
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -125,6 +132,55 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
       }
     });
 
+    // Add contacts that don't have conversations yet
+    (contacts || []).forEach(contact => {
+      if (isTeacher) {
+        // For teachers: add each parent for each student
+        (contact.parents || []).forEach(parent => {
+          const existingConversation = raw.find(r => 
+            r.id === parent.parentId && r.studentId === contact.studentId
+          );
+          
+          if (!existingConversation) {
+            raw.push({
+              id: parent.parentId,
+              name: parent.parentName,
+              type: 'parent',
+              studentName: contact.studentName,
+              studentId: contact.studentId,
+              unreadCount: 0,
+              lastMessage: null,
+              lastMessageTime: null,
+              conversationId: null,
+              uniqueKey: `${parent.parentId}-${contact.studentId}` // Unique key for contacts without conversations
+            });
+          }
+        });
+      } else {
+        // For parents: add each teacher for each student
+        (contact.teachers || []).forEach(teacher => {
+          const existingConversation = raw.find(r => 
+            r.id === teacher.teacherId && r.studentId === contact.studentId
+          );
+          
+          if (!existingConversation) {
+            raw.push({
+              id: teacher.teacherId,
+              name: teacher.teacherName,
+              type: 'teacher',
+              studentName: contact.studentName,
+              studentId: contact.studentId,
+              unreadCount: 0,
+              lastMessage: null,
+              lastMessageTime: null,
+              conversationId: null,
+              uniqueKey: `${teacher.teacherId}-${contact.studentId}` // Unique key for contacts without conversations
+            });
+          }
+        });
+      }
+    });
+
     return raw;
   };
 
@@ -145,7 +201,6 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
       }
       
       const { data } = await api.get(url);
-      console.log('Fetched messages:', data); // Debug log
       
       if (data && data.status === 'success') {
         // Ensure proper message structure
@@ -164,7 +219,6 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
           return dateA - dateB; // Ascending order: oldest to newest
         });
         
-        console.log('Processed and sorted messages:', sortedMessages); // Debug log
         setMessages(sortedMessages);
       }
     } catch (error) {
@@ -210,18 +264,65 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
   const handleClearChat = async () => {
     if (!selectedRecipient?.conversationId) return;
     
-    const confirmed = window.confirm('Are you sure you want to clear this chat? This action cannot be undone.');
-    if (!confirmed) return;
-
-    try {
-      await api.delete(`/messages/conversation/${selectedRecipient.conversationId}`);
-      setMessages([]);
-      fetchConversations(); // Refresh conversation list
-      toast.success('Chat cleared successfully');
-      setShowDropdown(false);
-    } catch (error) {
-      console.error('Error clearing chat:', error);
-      toast.error('Failed to clear chat');
+    // Check if mobile device
+    const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Check if running in Capacitor (native app)
+      const isCapacitor = window.Capacitor?.isNativePlatform();
+      
+      let confirmed = false;
+      
+      if (isCapacitor) {
+        // Use Capacitor Dialog for native apps
+        try {
+          const { Dialog } = await import('@capacitor/dialog');
+          const result = await Dialog.confirm({
+            title: 'Clear Chat',
+            message: 'Are you sure you want to clear this chat? This action cannot be undone.',
+            okButtonTitle: 'Clear',
+            cancelButtonTitle: 'Cancel'
+          });
+          confirmed = result.value;
+        } catch (error) {
+          // Fallback to native confirm if Capacitor Dialog not available
+          confirmed = window.confirm('Are you sure you want to clear this chat? This action cannot be undone.');
+        }
+      } else {
+        // Use native confirm for mobile web
+        confirmed = window.confirm('Are you sure you want to clear this chat? This action cannot be undone.');
+      }
+      
+      if (confirmed) {
+        try {
+          await api.delete(`/messages/conversation/${selectedRecipient.conversationId}`);
+          setMessages([]);
+          fetchConversations(); // Refresh conversation list
+          toast.success('Chat cleared successfully');
+        } catch (error) {
+          console.error('Error clearing chat:', error);
+          toast.error('Failed to clear chat');
+        }
+      }
+    } else {
+      // Use custom modal for desktop
+      setConfirmModal({
+        isOpen: true,
+        title: 'Clear Chat',
+        message: 'Are you sure you want to clear this chat? This action cannot be undone.',
+        onConfirm: async () => {
+          try {
+            await api.delete(`/messages/conversation/${selectedRecipient.conversationId}`);
+            setMessages([]);
+            fetchConversations(); // Refresh conversation list
+            toast.success('Chat cleared successfully');
+          } catch (error) {
+            console.error('Error clearing chat:', error);
+            toast.error('Failed to clear chat');
+          }
+          setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
+        }
+      });
     }
   };
 
@@ -276,7 +377,6 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
       }
 
       const { data } = await api.post(endpoint, payload);
-      console.log('API Response:', data); // Debug log
       
       // Remove the temporary message
       setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
@@ -309,8 +409,6 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
           temp: false
         };
       }
-      
-      console.log('Success Message:', successMessage); // Debug log
       
       setMessages(prev => [...prev, successMessage]);
       
@@ -890,6 +988,19 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
           </div>
         </div>
       )}
+      
+      {/* Confirm Modal - Desktop only */}
+      {!(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) && (
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => {
+            setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -922,15 +1033,9 @@ const ModernMessageBubble = ({ message, currentUser, isOwnMessage }) => {
 
   // Get message content - handle different field names
   const messageContent = message.message || message.content || message.messageContent || '';
-  
-  // Debug log
-  console.log('Message object:', message);
-  console.log('Message content:', messageContent);
-  console.log('Is own message:', isOwnMessage);
 
   // Don't render if no message content
   if (!messageContent && !message.temp) {
-    console.warn('No message content found:', message);
     return null;
   }
 
