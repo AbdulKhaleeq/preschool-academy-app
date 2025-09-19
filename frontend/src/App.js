@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import AppFlowController from './components/AppFlowController';
 import './styles/globals.css';
 import api from './api';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { Card, Button, Input, Select } from './components/ui';
+import { Card, Button, Input } from './components/ui';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PhoneIcon, KeyIcon } from '@heroicons/react/24/outline';
 import { Toaster } from 'react-hot-toast';
@@ -14,12 +14,25 @@ import toast from 'react-hot-toast';
 
 function App() {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [role, setRole] = useState('parent');
   const [otp, setOtp] = useState('');
   const [otpRequested, setOtpRequested] = useState(false);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // 30-day auto logout check
+  useEffect(() => {
+    if (user) {
+      const lastLoginTime = localStorage.getItem('wellington_last_login');
+      if (lastLoginTime) {
+        const daysSinceLogin = (Date.now() - parseInt(lastLoginTime)) / (24 * 60 * 60 * 1000);
+        if (daysSinceLogin >= 30) {
+          handleLogout();
+          toast.error('Session expired after 30 days. Please login again.');
+        }
+      }
+    }
+  }, [user]);
 
   // Mobile number validation
   const isMobileValid = phoneNumber.trim().length === 10 && /^\d{10}$/.test(phoneNumber.trim());
@@ -87,6 +100,7 @@ function App() {
       const { data } = await api.post('/auth/verify-otp', { phone: phoneNumber.trim(), otp });
       if (data.success) {
         localStorage.setItem('token', data.token);
+        localStorage.setItem('wellington_last_login', Date.now().toString()); // Record login time for 30-day auto logout
         const loggedInUser = { ...data.user };
         setUser(loggedInUser);
         setIsLoggedIn(true);
@@ -106,20 +120,15 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('wellington_last_login'); // Clear login timestamp
+    localStorage.removeItem('wellington_onboarding_completed'); // Reset onboarding on logout
     setUser(null);
     setIsLoggedIn(false);
     setPhoneNumber('');
-    setRole('parent');
     setOtp('');
     setOtpRequested(false);
     toast.success('Successfully logged out');
   };
-
-  const roleOptions = [
-    { value: 'parent', label: '👨‍👩‍👧‍👦 Parent' },
-    { value: 'teacher', label: '👩‍🏫 Teacher' },
-    { value: 'admin', label: '👨‍💼 Admin' }
-  ];
 
   return (
     <ThemeProvider>
@@ -271,17 +280,6 @@ function App() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       OTP will be shown after requesting
                     </p>
-                    
-                    {/* Reset Onboarding Button for Testing */}
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem('wellington_onboarding_completed');
-                        toast.success('Onboarding reset! Refresh to see again.');
-                      }}
-                      className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
-                    >
-                      Reset Onboarding (for testing)
-                    </button>
                   </motion.div>
                 </Card>
               </motion.div>
