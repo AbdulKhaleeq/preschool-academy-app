@@ -7,7 +7,6 @@ const getMonthlyFees = async (req, res) => {
     const currentMonth = month || new Date().getMonth() + 1;
     const currentYear = year || new Date().getFullYear();
 
-    console.log(`📊 Getting fees for ${currentMonth}/${currentYear}`);
 
     // Get all students with Tuition program and their fee information
     const result = await pool.query(`
@@ -39,10 +38,8 @@ const getMonthlyFees = async (req, res) => {
       roll_no: `${row.student_id.toString().padStart(3, '0')}`
     }));
 
-    console.log(`✅ Found ${fees.length} fee records`);
     return res.json({ success: true, fees, month: currentMonth, year: currentYear });
   } catch (error) {
-    console.error('❌ Error getting monthly fees:', error);
     return res.status(500).json({ success: false, message: 'Error getting monthly fees' });
   }
 };
@@ -88,10 +85,8 @@ const markFeeStatus = async (req, res) => {
       RETURNING *
     `, [studentId, month, year, feeAmount, !!is_paid]);
 
-    console.log(`✅ Fee status updated successfully`);
     return res.json({ success: true, fee: result.rows[0] });
   } catch (error) {
-    console.error('❌ Error updating fee status:', error);
     return res.status(500).json({ success: false, message: 'Error updating fee status' });
   }
 };
@@ -127,10 +122,8 @@ const addStudentToFees = async (req, res) => {
       RETURNING *
     `, [studentId, targetMonth, targetYear, amount]);
 
-    console.log(`✅ Student added to fee tracking successfully`);
     return res.json({ success: true, fee: result.rows[0] });
   } catch (error) {
-    console.error('❌ Error adding student to fees:', error);
     return res.status(500).json({ success: false, message: 'Error adding student to fees' });
   }
 };
@@ -166,14 +159,12 @@ const generateNewMonth = async (req, res) => {
       }
     }
 
-    console.log(`✅ Generated ${createdCount} new fee records`);
     return res.json({ 
       success: true, 
       message: `Generated fees for ${createdCount} students`,
       generated: createdCount 
     });
   } catch (error) {
-    console.error('❌ Error generating new month fees:', error);
     return res.status(500).json({ success: false, message: 'Error generating new month fees' });
   }
 };
@@ -198,10 +189,8 @@ const getAvailableStudents = async (req, res) => {
       ORDER BY s.name
     `, [currentMonth, currentYear]);
 
-    console.log(`✅ Found ${result.rows.length} available students`);
     return res.json({ success: true, students: result.rows });
   } catch (error) {
-    console.error('❌ Error getting available students:', error);
     return res.status(500).json({ success: false, message: 'Error getting available students' });
   }
 };
@@ -239,10 +228,8 @@ const generateReport = async (req, res) => {
       unpaid_amount: parseFloat(summary.unpaid_amount) || 0
     };
 
-    console.log(`✅ Report generated successfully`);
     return res.json({ success: true, report });
   } catch (error) {
-    console.error('❌ Error generating report:', error);
     return res.status(500).json({ success: false, message: 'Error generating report' });
   }
 };
@@ -286,7 +273,6 @@ const getParentDues = async (req, res) => {
     // Calculate total pending amount
     const totalPending = pendingDues.reduce((sum, due) => sum + due.amount, 0);
 
-    console.log(`✅ Found ${pendingDues.length} pending dues for parent (Total: ₹${totalPending})`);
     return res.json({ 
       success: true, 
       pendingDues,
@@ -294,7 +280,6 @@ const getParentDues = async (req, res) => {
       count: pendingDues.length
     });
   } catch (error) {
-    console.error('❌ Error getting parent dues:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Error getting parent dues' 

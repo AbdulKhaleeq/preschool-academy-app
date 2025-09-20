@@ -7,7 +7,6 @@ const getMonthlyExpenses = async (req, res) => {
     const currentMonth = month || new Date().getMonth() + 1;
     const currentYear = year || new Date().getFullYear();
 
-    console.log(`📊 Getting expenses for ${currentMonth}/${currentYear}`);
 
     const result = await pool.query(`
       SELECT 
@@ -25,7 +24,6 @@ const getMonthlyExpenses = async (req, res) => {
 
     const expenses = result.rows;
 
-    console.log(`✅ Found ${expenses.length} expense records`);
     return res.json({ 
       success: true, 
       expenses, 
@@ -33,7 +31,6 @@ const getMonthlyExpenses = async (req, res) => {
       year: currentYear 
     });
   } catch (error) {
-    console.error('❌ Error getting monthly expenses:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Error getting monthly expenses' 
@@ -48,7 +45,6 @@ const getExpenseSummary = async (req, res) => {
     const currentMonth = month || new Date().getMonth() + 1;
     const currentYear = year || new Date().getFullYear();
 
-    console.log(`📊 Getting expense summary for ${currentMonth}/${currentYear}`);
 
     // Get total expenses for the month
     const totalResult = await pool.query(`
@@ -85,7 +81,6 @@ const getExpenseSummary = async (req, res) => {
       monthlyTotal: parseFloat(totalResult.rows[0].total_expenses)
     };
 
-    console.log(`✅ Generated expense summary for ${currentMonth}/${currentYear}`);
     return res.json({ 
       success: true, 
       summary, 
@@ -93,7 +88,6 @@ const getExpenseSummary = async (req, res) => {
       year: currentYear 
     });
   } catch (error) {
-    console.error('❌ Error getting expense summary:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Error getting expense summary' 
@@ -123,14 +117,12 @@ const addExpense = async (req, res) => {
 
     const expense = result.rows[0];
 
-    console.log(`✅ Added expense with ID: ${expense.id}`);
     return res.json({ 
       success: true, 
       expense,
       message: 'Expense added successfully' 
     });
   } catch (error) {
-    console.error('❌ Error adding expense:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Error adding expense' 
@@ -158,13 +150,11 @@ const deleteExpense = async (req, res) => {
       });
     }
 
-    console.log(`✅ Deleted expense: ${result.rows[0].description}`);
     return res.json({ 
       success: true, 
       message: 'Expense deleted successfully' 
     });
   } catch (error) {
-    console.error('❌ Error deleting expense:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Error deleting expense' 
@@ -234,13 +224,11 @@ const generateExpenseReport = async (req, res) => {
       generatedAt: new Date()
     };
 
-    console.log(`✅ Generated expense report with ${report.expenses.length} entries`);
     return res.json({ 
       success: true, 
       report 
     });
   } catch (error) {
-    console.error('❌ Error generating expense report:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Error generating expense report' 
@@ -277,14 +265,12 @@ const updateExpense = async (req, res) => {
 
     const expense = result.rows[0];
 
-    console.log(`✅ Updated expense: ${expense.description}`);
     return res.json({ 
       success: true, 
       expense,
       message: 'Expense updated successfully' 
     });
   } catch (error) {
-    console.error('❌ Error updating expense:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Error updating expense' 

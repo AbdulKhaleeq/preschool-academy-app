@@ -28,10 +28,6 @@ class OTPStorage {
         console.error('Redis Client Error:', err);
       });
 
-      this.redisClient.on('connect', () => {
-        console.log('Connected to Redis');
-      });
-
       this.redisClient.connect().catch(console.error);
     }
   }

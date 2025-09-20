@@ -862,7 +862,11 @@ const UsersContent = ({ users, loading, onToggleActive, onDelete, onEdit }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
+            {users.map((user, index) => {
+              // Determine if dropdown should appear above (for last few rows)
+              const shouldDropUp = index >= users.length - 2;
+              
+              return (
               <tr key={user.id} className="hover:bg-gray-50">
                 <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {user.name || 'N/A'}
@@ -898,7 +902,9 @@ const UsersContent = ({ users, loading, onToggleActive, onDelete, onEdit }) => {
                         />
                         
                         {/* Dropdown Menu */}
-                        <div className="absolute right-0 z-20 mt-2 w-48 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                        <div className={`absolute right-0 z-20 w-48 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 ${
+                          shouldDropUp ? 'bottom-full mb-2' : 'top-full mt-2'
+                        }`}>
                           <div className="py-1">
                             <button
                               onClick={() => {
@@ -936,7 +942,8 @@ const UsersContent = ({ users, loading, onToggleActive, onDelete, onEdit }) => {
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>

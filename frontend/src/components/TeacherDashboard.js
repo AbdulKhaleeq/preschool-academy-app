@@ -38,7 +38,6 @@ const TeacherDashboard = ({ user }) => {
     const loadOverviewAndContacts = async () => {
       try {
         setLoading(true);
-        console.log('[DEBUG TeacherDashboard] Starting API calls... TIMESTAMP:', new Date().toISOString());
         
         // Handle each API call separately to prevent one failure from breaking everything
         const apiCalls = [
@@ -58,10 +57,6 @@ const TeacherDashboard = ({ user }) => {
         if (activitiesRes.error) console.error('Activities API error:', activitiesRes.error);
         if (announcementsRes.error) console.error('Announcements API error:', announcementsRes.error);
         
-        console.log('[DEBUG FRESH] Teacher contacts response:', contactsRes.data);
-        console.log('[DEBUG FRESH] contactsRes.data structure:', Object.keys(contactsRes.data || {}));
-        console.log('[DEBUG FRESH] contactsRes.data.students:', contactsRes.data?.students);
-        console.log('[DEBUG FRESH] contactsRes.data.contacts:', contactsRes.data?.contacts);
         
         const total = studentsRes.data?.students?.length || 0;
         const messages = msgsRes.data?.messages?.length || 0;
@@ -70,12 +65,8 @@ const TeacherDashboard = ({ user }) => {
         setOverview({ total, messages, activities, announcements });
         
         const finalContacts = contactsRes.data?.students || contactsRes.data?.contacts || [];
-        console.log('[DEBUG FRESH] Final teacher contacts set:', finalContacts);
-        console.log('[DEBUG FRESH] Setting teacherContacts state with length:', finalContacts.length);
         setTeacherContacts(finalContacts);
       } catch (e) {
-        console.error("❌ Error loading teacher dashboard data:", e);
-        console.error("❌ Error details:", e.response?.data || e.message);
       } finally {
         setLoading(false);
       }
@@ -120,7 +111,6 @@ const TeacherDashboard = ({ user }) => {
       case 'activities':
         return <TeacherActivities user={user} />;
       case 'messages':
-        console.log('[DEBUG FRESH TeacherDashboard] Rendering MessageComposer with teacherContacts:', teacherContacts);
         return (
           <div className="h-full w-full">
             <MessageComposer

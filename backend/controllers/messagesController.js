@@ -259,7 +259,6 @@ const getMessages = async (req, res) => {
 // @access  Private (Teacher)
 const getTeacherContacts = async (req, res) => {
     const teacherId = req.user.userId;
-    console.log('🔍 [DEBUG] getTeacherContacts called for teacherId:', teacherId);
 
     try {
         const result = await pool.query(
@@ -272,9 +271,6 @@ const getTeacherContacts = async (req, res) => {
             ORDER BY s.name, p.name`,
             [teacherId]
         );
-
-        console.log('🔍 [DEBUG] Raw query result rows:', result.rows.length);
-        console.log('🔍 [DEBUG] First few rows:', result.rows.slice(0, 3));
 
         const studentsMap = new Map();
         result.rows.forEach(row => {
@@ -293,14 +289,12 @@ const getTeacherContacts = async (req, res) => {
         });
 
         const finalResult = Array.from(studentsMap.values());
-        console.log('🔍 [DEBUG] Final students result:', finalResult.length, 'students');
 
         res.status(200).json({ 
             status: 'success', 
             students: finalResult
         });
     } catch (error) {
-        console.error('Error fetching teacher contacts:', error);
         res.status(500).json({ status: 'error', message: 'Internal server error.' });
     }
 };
@@ -312,7 +306,6 @@ const getParentContacts = async (req, res) => {
     const parentId = req.user.userId;
 
     try {
-        console.log(`[DEBUG] getParentContacts called for parent ID: ${parentId}`);
         
         const result = await pool.query(
             `SELECT
@@ -326,11 +319,9 @@ const getParentContacts = async (req, res) => {
             [parentId]
         );
 
-        console.log(`[DEBUG] Raw query results:`, result.rows);
 
         const childrenMap = new Map();
         result.rows.forEach(row => {
-            console.log(`[DEBUG] Processing row:`, row);
             if (!childrenMap.has(row.student_id)) {
                 childrenMap.set(row.student_id, { 
                     studentId: row.student_id, 
@@ -346,7 +337,6 @@ const getParentContacts = async (req, res) => {
         });
 
         const finalResult = Array.from(childrenMap.values());
-        console.log(`[DEBUG] Final contacts result:`, finalResult);
 
         res.status(200).json({ 
             status: 'success', 
@@ -366,7 +356,6 @@ const getConversationThreads = async (req, res) => {
     const userRole = req.user.role;
 
     try {
-        console.log(`[DEBUG] getConversationThreads called for user ID: ${userId}, role: ${userRole}`);
         
         let query;
         if (userRole === 'teacher') {
@@ -412,7 +401,6 @@ const getConversationThreads = async (req, res) => {
 
         const result = await pool.query(query, [userId]);
         
-        console.log(`[DEBUG] Conversation threads raw results:`, result.rows);
 
         res.status(200).json({ 
             status: 'success', 

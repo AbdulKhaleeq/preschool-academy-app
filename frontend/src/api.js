@@ -2,7 +2,6 @@
 import axios from 'axios';
 
 // Debug: Log the API URL being used
-console.log('🔍 API URL:', process.env.REACT_APP_API_URL || 'https://preschool-academy-app-production.up.railway.app');
 
 const api = axios.create({ 
   baseURL: process.env.REACT_APP_API_URL || 'https://preschool-academy-app-production.up.railway.app'

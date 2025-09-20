@@ -49,36 +49,27 @@ const ReportsPage = ({ student, user, onBack }) => {
     
     setLoading(true);
     try {
-      console.log('Loading reports data for student:', student.id);
       
       const response = await api.get(`/daily-reports/${student.id}`);
-      console.log('API Response:', response.data);
       
       if (response.data && response.data.success) {
         const reports = response.data.reports || [];
-        console.log('Fetched reports:', reports);
         
         // Process reports into attendance and notes data
         const attendanceMap = {};
         const notesMap = {};
         
         reports.forEach(report => {
-          console.log('=== LOAD DEBUG ===');
-          console.log('Raw report from backend:', report);
           
           // Since backend now returns report_date as YYYY-MM-DD string, use it directly
           let dateKey;
           if (report.report_date) {
-            console.log('report.report_date:', report.report_date, 'type:', typeof report.report_date);
             dateKey = report.report_date; // Should now be a clean YYYY-MM-DD string
-            console.log('Using dateKey directly:', dateKey);
           } else {
             // Fallback to created_at
             dateKey = formatDate(new Date(report.created_at));
-            console.log('Used created_at fallback, dateKey:', dateKey);
           }
           
-          console.log('Processing report for date:', dateKey, 'attendance:', report.attendance, 'notes:', report.notes);
           
           // Handle attendance - it might be boolean or string
           if (typeof report.attendance === 'boolean') {
@@ -96,13 +87,10 @@ const ReportsPage = ({ student, user, onBack }) => {
           }
         });
         
-        console.log('Processed attendance data:', attendanceMap);
-        console.log('Processed notes data:', notesMap);
         
         setAttendanceData(attendanceMap);
         setNotesData(notesMap);
       } else {
-        console.log('No data returned or success flag false');
       }
     } catch (error) {
       console.error('Error loading reports:', error);
@@ -119,10 +107,6 @@ const ReportsPage = ({ student, user, onBack }) => {
     try {
       const dateKey = formatDate(selectedDate);
       
-      console.log('=== SAVE DEBUG ===');
-      console.log('selectedDate object:', selectedDate);
-      console.log('selectedDate.toString():', selectedDate.toString());
-      console.log('formatDate result (dateKey):', dateKey);
       
       const reportData = {
         student_id: student.id,
@@ -131,11 +115,9 @@ const ReportsPage = ({ student, user, onBack }) => {
         notes: selectedNote.trim()
       };
       
-      console.log('Saving report data:', reportData);
       
       const response = await api.post('/daily-reports', reportData);
       
-      console.log('Save response:', response.data);
       
       if (response.data && response.data.success) {
         // Update local data
@@ -198,9 +180,6 @@ const ReportsPage = ({ student, user, onBack }) => {
   const getDataForDate = (date) => {
     if (!date) return { attendance: null, hasNote: false, note: '' };
     const dateKey = formatDate(date);
-    console.log('Getting data for date:', dateKey);
-    console.log('Available attendance keys:', Object.keys(attendanceData));
-    console.log('Available notes keys:', Object.keys(notesData));
     
     const data = {
       attendance: attendanceData[dateKey],
@@ -208,19 +187,13 @@ const ReportsPage = ({ student, user, onBack }) => {
       note: notesData[dateKey] || ''
     };
     
-    console.log('Retrieved data:', data);
     return data;
   };
 
   const handleDateSelect = (date) => {
-    console.log('=== DATE SELECT DEBUG ===');
-    console.log('Selected date object:', date);
-    console.log('Selected date.toString():', date.toString());
-    console.log('Selected date timezone offset:', date.getTimezoneOffset());
     
     setSelectedDate(date);
     const data = getDataForDate(date);
-    console.log('Selected date data:', data);
     
     // Set attendance dropdown value
     if (data.attendance === true) {
