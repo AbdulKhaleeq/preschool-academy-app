@@ -170,12 +170,19 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
       } else {
         // For parents: add each teacher for each student
         (contact.teachers || []).forEach(teacher => {
-          const existingConversation = raw.find(r => 
-            r.id === teacher.teacherId && r.studentId === contact.studentId
+          console.log('[DEBUG MessageComposer] Processing teacher:', teacher, 'for student:', contact.studentName);
+          
+          // Check if we already have this teacher-student combination (from conversations or contacts)
+          const existingContact = raw.find(r => 
+            r.id === teacher.teacherId && 
+            r.studentId === contact.studentId &&
+            r.type === 'teacher'
           );
           
-          if (!existingConversation) {
-            raw.push({
+          console.log('[DEBUG MessageComposer] Existing teacher contact found:', !!existingContact);
+          
+          if (!existingContact) {
+            const newContact = {
               id: teacher.teacherId,
               name: teacher.teacherName,
               type: 'teacher',
@@ -186,14 +193,34 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
               lastMessageTime: null,
               conversationId: null,
               uniqueKey: `${teacher.teacherId}-${contact.studentId}` // Unique key for contacts without conversations
-            });
+            };
+            console.log('[DEBUG MessageComposer] Adding new teacher contact:', newContact);
+            raw.push(newContact);
+          } else {
+            console.log('[DEBUG MessageComposer] Skipping duplicate teacher contact for:', teacher.teacherName, contact.studentName);
           }
         });
       }
     });
 
-    console.log('[DEBUG MessageComposer] Final raw contacts before return:', raw);
-    return raw;
+    console.log('[DEBUG MessageComposer] Raw contacts before deduplication:', raw);
+    
+    // Final deduplication: remove any remaining duplicates based on teacher/parent ID + student ID + type
+    const uniqueContacts = [];
+    const seenKeys = new Set();
+    
+    raw.forEach(contact => {
+      const uniqueKey = `${contact.id}-${contact.studentId}-${contact.type}`;
+      if (!seenKeys.has(uniqueKey)) {
+        seenKeys.add(uniqueKey);
+        uniqueContacts.push(contact);
+      } else {
+        console.log('[DEBUG MessageComposer] Removing duplicate contact:', contact.name, contact.studentName);
+      }
+    });
+
+    console.log('[DEBUG MessageComposer] Final raw contacts after deduplication:', uniqueContacts);
+    return uniqueContacts;
   };
 
   const filteredRecipients = getRecipientOptions().filter(recipient =>
