@@ -38,6 +38,8 @@ const TeacherDashboard = ({ user }) => {
     const loadOverviewAndContacts = async () => {
       try {
         setLoading(true);
+        console.log('[DEBUG TeacherDashboard] Starting API calls...');
+        
         const [studentsRes, msgsRes, contactsRes, activitiesRes, announcementsRes] = await Promise.all([
           api.get(`/students/teacher/${encodeURIComponent(user.name)}`),
           api.get(`/messages?otherUserId=${user.id}`),
@@ -61,7 +63,8 @@ const TeacherDashboard = ({ user }) => {
         console.log('[DEBUG] Final teacher contacts set:', finalContacts);
         setTeacherContacts(finalContacts);
       } catch (e) {
-        console.error("Error loading teacher dashboard data:", e);
+        console.error("❌ Error loading teacher dashboard data:", e);
+        console.error("❌ Error details:", e.response?.data || e.message);
       } finally {
         setLoading(false);
       }
@@ -106,6 +109,7 @@ const TeacherDashboard = ({ user }) => {
       case 'activities':
         return <TeacherActivities user={user} />;
       case 'messages':
+        console.log('[DEBUG TeacherDashboard] Rendering MessageComposer with teacherContacts:', teacherContacts);
         return (
           <div className="h-full w-full">
             <MessageComposer
