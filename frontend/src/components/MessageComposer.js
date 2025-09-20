@@ -93,6 +93,9 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
   };
 
   const getRecipientOptions = () => {
+    console.log('[DEBUG MessageComposer] getRecipientOptions called with contacts:', contacts);
+    console.log('[DEBUG MessageComposer] getRecipientOptions called with conversations:', conversations);
+    
     const raw = [];
     
     // Add "All Parents" option for teachers
@@ -103,6 +106,7 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     // Transform conversations into recipient format with unread counts
     // Each conversation is already unique by conversation_id from backend
     (conversations || []).forEach(conversation => {
+      console.log('[DEBUG MessageComposer] Processing conversation:', conversation);
       if (isTeacher) {
         raw.push({
           id: conversation.parent_id,
@@ -133,16 +137,21 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
     });
 
     // Add contacts that don't have conversations yet
+    console.log('[DEBUG MessageComposer] Adding contacts that dont have conversations, contacts:', contacts);
     (contacts || []).forEach(contact => {
+      console.log('[DEBUG MessageComposer] Processing contact:', contact);
       if (isTeacher) {
         // For teachers: add each parent for each student
         (contact.parents || []).forEach(parent => {
+          console.log('[DEBUG MessageComposer] Processing parent:', parent, 'for student:', contact.studentName);
           const existingConversation = raw.find(r => 
             r.id === parent.parentId && r.studentId === contact.studentId
           );
           
+          console.log('[DEBUG MessageComposer] Existing conversation found:', !!existingConversation);
+          
           if (!existingConversation) {
-            raw.push({
+            const newContact = {
               id: parent.parentId,
               name: parent.parentName,
               type: 'parent',
@@ -153,7 +162,9 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
               lastMessageTime: null,
               conversationId: null,
               uniqueKey: `${parent.parentId}-${contact.studentId}` // Unique key for contacts without conversations
-            });
+            };
+            console.log('[DEBUG MessageComposer] Adding new contact:', newContact);
+            raw.push(newContact);
           }
         });
       } else {
@@ -181,6 +192,7 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
       }
     });
 
+    console.log('[DEBUG MessageComposer] Final raw contacts before return:', raw);
     return raw;
   };
 
