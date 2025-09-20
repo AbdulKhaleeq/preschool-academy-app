@@ -121,6 +121,17 @@ const runMigrations = async () => {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS activity_students (
+      id SERIAL PRIMARY KEY,
+      activity_id INT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+      student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      is_completed BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE (activity_id, student_id)
+    );
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS fees (
       id SERIAL PRIMARY KEY,
       student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -158,7 +169,9 @@ const runMigrations = async () => {
   // Create activities indexes only if columns exist (they might be added via migration)
   try {
     await pool.query('CREATE INDEX IF NOT EXISTS idx_activities_teacher ON activities(teacher_id);');
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(activity_date);');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(start_date);');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_activity_students_activity ON activity_students(activity_id);');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_activity_students_student ON activity_students(student_id);');
   } catch (error) {
     // Ignore index creation errors for activities (columns might not exist yet)
     console.log('Activities indexes will be created after migration');
