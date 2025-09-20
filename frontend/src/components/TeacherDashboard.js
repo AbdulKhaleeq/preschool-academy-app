@@ -45,12 +45,18 @@ const TeacherDashboard = ({ user }) => {
           api.get('/activities'),
           api.get('/announcements')
         ]);
+        
+        console.log('[DEBUG] Teacher contacts response:', contactsRes.data);
+        
         const total = studentsRes.data?.students?.length || 0;
         const messages = msgsRes.data?.messages?.length || 0;
         const activities = activitiesRes.data?.activities?.length || 0;
         const announcements = announcementsRes.data?.announcements?.length || 0;
         setOverview({ total, messages, activities, announcements });
-        setTeacherContacts(contactsRes.data?.students || contactsRes.data?.contacts || []);
+        
+        const finalContacts = contactsRes.data?.students || contactsRes.data?.contacts || [];
+        console.log('[DEBUG] Final teacher contacts set:', finalContacts);
+        setTeacherContacts(finalContacts);
       } catch (e) {
         console.error("Error loading teacher dashboard data:", e);
       } finally {
