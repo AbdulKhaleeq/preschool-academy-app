@@ -40,13 +40,23 @@ const TeacherDashboard = ({ user }) => {
         setLoading(true);
         console.log('[DEBUG TeacherDashboard] Starting API calls... TIMESTAMP:', new Date().toISOString());
         
-        const [studentsRes, msgsRes, contactsRes, activitiesRes, announcementsRes] = await Promise.all([
-          api.get(`/students/teacher/${encodeURIComponent(user.name)}`),
-          api.get(`/messages?otherUserId=${user.id}`),
-          api.get(`/messages/teacher/contacts?_t=${Date.now()}`),
-          api.get('/activities'),
-          api.get('/announcements')
-        ]);
+        // Handle each API call separately to prevent one failure from breaking everything
+        const apiCalls = [
+          api.get(`/students/teacher/${encodeURIComponent(user.name)}`).catch(e => ({ data: { students: [] }, error: e })),
+          api.get(`/messages?otherUserId=${user.id}`).catch(e => ({ data: { messages: [] }, error: e })),
+          api.get(`/messages/teacher/contacts?_t=${Date.now()}`).catch(e => ({ data: { students: [] }, error: e })),
+          api.get('/activities').catch(e => ({ data: { activities: [] }, error: e })),
+          api.get('/announcements').catch(e => ({ data: { announcements: [] }, error: e }))
+        ];
+        
+        const [studentsRes, msgsRes, contactsRes, activitiesRes, announcementsRes] = await Promise.all(apiCalls);
+        
+        // Log any errors but continue processing
+        if (studentsRes.error) console.error('Students API error:', studentsRes.error);
+        if (msgsRes.error) console.error('Messages API error:', msgsRes.error);
+        if (contactsRes.error) console.error('Contacts API error:', contactsRes.error);
+        if (activitiesRes.error) console.error('Activities API error:', activitiesRes.error);
+        if (announcementsRes.error) console.error('Announcements API error:', announcementsRes.error);
         
         console.log('[DEBUG FRESH] Teacher contacts response:', contactsRes.data);
         console.log('[DEBUG FRESH] contactsRes.data structure:', Object.keys(contactsRes.data || {}));
