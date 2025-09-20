@@ -366,6 +366,8 @@ const getConversationThreads = async (req, res) => {
     const userRole = req.user.role;
 
     try {
+        console.log(`[DEBUG] getConversationThreads called for user ID: ${userId}, role: ${userRole}`);
+        
         let query;
         if (userRole === 'teacher') {
             query = `
@@ -409,6 +411,8 @@ const getConversationThreads = async (req, res) => {
         }
 
         const result = await pool.query(query, [userId]);
+        
+        console.log(`[DEBUG] Conversation threads raw results:`, result.rows);
 
         res.status(200).json({ 
             status: 'success', 
