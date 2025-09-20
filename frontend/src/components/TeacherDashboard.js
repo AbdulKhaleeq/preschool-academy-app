@@ -47,6 +47,9 @@ const TeacherDashboard = ({ user }) => {
         ]);
         
         console.log('[DEBUG] Teacher contacts response:', contactsRes.data);
+        console.log('[DEBUG] contactsRes.data structure:', Object.keys(contactsRes.data || {}));
+        console.log('[DEBUG] contactsRes.data.students:', contactsRes.data?.students);
+        console.log('[DEBUG] contactsRes.data.contacts:', contactsRes.data?.contacts);
         
         const total = studentsRes.data?.students?.length || 0;
         const messages = msgsRes.data?.messages?.length || 0;
