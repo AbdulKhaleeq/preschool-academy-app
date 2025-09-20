@@ -259,6 +259,7 @@ const getMessages = async (req, res) => {
 // @access  Private (Teacher)
 const getTeacherContacts = async (req, res) => {
     const teacherId = req.user.userId;
+    console.log('🔍 [DEBUG] getTeacherContacts called for teacherId:', teacherId);
 
     try {
         const result = await pool.query(
@@ -271,6 +272,9 @@ const getTeacherContacts = async (req, res) => {
             ORDER BY s.name, p.name`,
             [teacherId]
         );
+
+        console.log('🔍 [DEBUG] Raw query result rows:', result.rows.length);
+        console.log('🔍 [DEBUG] First few rows:', result.rows.slice(0, 3));
 
         const studentsMap = new Map();
         result.rows.forEach(row => {
@@ -288,9 +292,12 @@ const getTeacherContacts = async (req, res) => {
             });
         });
 
+        const finalResult = Array.from(studentsMap.values());
+        console.log('🔍 [DEBUG] Final students result:', finalResult.length, 'students');
+
         res.status(200).json({ 
             status: 'success', 
-            students: Array.from(studentsMap.values()) 
+            students: finalResult
         });
     } catch (error) {
         console.error('Error fetching teacher contacts:', error);
@@ -305,6 +312,8 @@ const getParentContacts = async (req, res) => {
     const parentId = req.user.userId;
 
     try {
+        console.log(`[DEBUG] getParentContacts called for parent ID: ${parentId}`);
+        
         const result = await pool.query(
             `SELECT
                 s.id as student_id, s.name as student_name,
@@ -317,8 +326,11 @@ const getParentContacts = async (req, res) => {
             [parentId]
         );
 
+        console.log(`[DEBUG] Raw query results:`, result.rows);
+
         const childrenMap = new Map();
         result.rows.forEach(row => {
+            console.log(`[DEBUG] Processing row:`, row);
             if (!childrenMap.has(row.student_id)) {
                 childrenMap.set(row.student_id, { 
                     studentId: row.student_id, 
@@ -333,9 +345,12 @@ const getParentContacts = async (req, res) => {
             });
         });
 
+        const finalResult = Array.from(childrenMap.values());
+        console.log(`[DEBUG] Final contacts result:`, finalResult);
+
         res.status(200).json({ 
             status: 'success', 
-            children: Array.from(childrenMap.values()) 
+            children: finalResult 
         });
     } catch (error) {
         console.error('Error fetching parent contacts:', error);
