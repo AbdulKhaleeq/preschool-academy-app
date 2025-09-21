@@ -18,13 +18,36 @@ const isAdminPhone = (phone) => {
   return ADMIN_PHONES_RAW.includes(normalizedPhone);
 };
 
-// In-memory OTP store for demo/dev. Replace with Redis in production.
+// In-memory stores for demo/dev. Replace with Redis in production.
 const phoneToOtp = new Map();
+const attemptTracker = new Map(); // Track failed attempts per phone
+const requestTracker = new Map(); // Track OTP request frequency
+
+// Rate limiting constants
+const MAX_ATTEMPTS = 3;
+const ATTEMPT_WINDOW = 5 * 60 * 1000; // 5 minutes
+const MAX_REQUESTS = 5; // Max OTP requests
+const REQUEST_WINDOW = 10 * 60 * 1000; // 10 minutes
+const OTP_EXPIRY = 25 * 1000; // 25 seconds (shorter for security)
 
 const requestOtp = async (req, res) => {
   try {
     const { phone } = req.body; // No longer expecting role from frontend
     if (!phone) return res.status(400).json({ success: false, message: 'Phone is required' });
+
+    // Check request rate limiting
+    const now = Date.now();
+    const phoneRequests = requestTracker.get(phone) || [];
+    
+    // Clean old requests outside the window
+    const recentRequests = phoneRequests.filter(time => now - time < REQUEST_WINDOW);
+    
+    if (recentRequests.length >= MAX_REQUESTS) {
+      return res.status(429).json({ 
+        success: false, 
+        message: 'Too many OTP requests. Please wait 10 minutes and try again.' 
+      });
+    }
 
     // Check if phone number exists in database or is admin
     let isValidUser = false;
@@ -65,9 +88,18 @@ const requestOtp = async (req, res) => {
 
     // Generate and store OTP
     const otp = (Math.floor(100000 + Math.random() * 900000)).toString();
-    phoneToOtp.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
+    phoneToOtp.set(phone, { otp, expiresAt: Date.now() + OTP_EXPIRY });
     
-    return res.json({ success: true, message: 'OTP generated', otp });
+    // Track this request
+    recentRequests.push(now);
+    requestTracker.set(phone, recentRequests);
+    
+    return res.json({ 
+      success: true, 
+      message: 'OTP generated', 
+      otp,
+      expiresIn: OTP_EXPIRY // Send expiry time to frontend for countdown
+    });
   } catch (error) {
     console.error('Error in requestOtp:', error);
     return res.status(500).json({ success: false, message: 'Failed to request OTP' });
@@ -79,10 +111,33 @@ const verifyOtp = async (req, res) => {
     const { phone, otp } = req.body;
     if (!phone || !otp) return res.status(400).json({ success: false, message: 'Phone and OTP are required' });
     
+    // Check attempt rate limiting
+    const now = Date.now();
+    const phoneAttempts = attemptTracker.get(phone) || [];
+    
+    // Clean old attempts outside the window
+    const recentAttempts = phoneAttempts.filter(time => now - time < ATTEMPT_WINDOW);
+    
+    if (recentAttempts.length >= MAX_ATTEMPTS) {
+      return res.status(429).json({ 
+        success: false, 
+        message: `Too many failed attempts. Please wait 5 minutes and try again.` 
+      });
+    }
+    
     const record = phoneToOtp.get(phone);
     if (!record || record.otp !== otp || record.expiresAt < Date.now()) {
+      // Track failed attempt
+      recentAttempts.push(now);
+      attemptTracker.set(phone, recentAttempts);
+      
       return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
     }
+
+    // Success - clear tracking data
+    phoneToOtp.delete(phone);
+    attemptTracker.delete(phone);
+    requestTracker.delete(phone);
 
     // Determine role and user details
     let role = null;
@@ -124,9 +179,6 @@ const verifyOtp = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign({ phone, role, userId, name }, process.env.JWT_SECRET || 'dev_secret', { expiresIn: '7d' });
-    
-    // Clean up OTP
-    phoneToOtp.delete(phone);
     
     return res.json({ 
       success: true, 

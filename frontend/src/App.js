@@ -72,6 +72,8 @@ function App() {
         // Handle specific error messages
         if (data.message && data.message.toLowerCase().includes('not found')) {
           toast.error('Mobile number not registered. Please contact admin.');
+        } else if (data.message && data.message.toLowerCase().includes('too many')) {
+          toast.error(data.message); // Rate limiting message
         } else {
           toast.error(data.message || 'Failed to request OTP');
         }
@@ -83,10 +85,11 @@ function App() {
         toast.error('Mobile number not registered. Please contact admin.');
       } else if (errorMessage && errorMessage.toLowerCase().includes('not registered')) {
         toast.error('Mobile number not registered. Please contact admin.');
+      } else if (errorMessage && errorMessage.toLowerCase().includes('too many')) {
+        toast.error(errorMessage); // Rate limiting message
       } else {
         toast.error(errorMessage || 'Connection error. Please try again.');
       }
-      console.error('OTP request error:', error);
     }
     
     setLoading(false);
@@ -99,20 +102,35 @@ function App() {
     try {
       const { data } = await api.post('/auth/verify-otp', { phone: phoneNumber.trim(), otp });
       if (data.success) {
+        // Reset all OTP states on successful verification
+        setOtpRequested(false);
+        setOtp('');
+        
         localStorage.setItem('token', data.token);
-        localStorage.setItem('wellington_last_login', Date.now().toString()); // Record login time for 30-day auto logout
+        localStorage.setItem('wellington_last_login', Date.now().toString());
         const loggedInUser = { ...data.user };
         setUser(loggedInUser);
         setIsLoggedIn(true);
         toast.success(`Welcome ${data.user.role}! Successfully logged in!`);
       } else if (data.blocked) {
         toast.error('Your account has been blocked. Please contact admin.');
+      } else if (data.message && data.message.toLowerCase().includes('expired')) {
+        toast.error('OTP has expired. Please request a new one.');
+      } else if (data.message && data.message.toLowerCase().includes('too many')) {
+        toast.error(data.message); // Rate limiting message
       } else {
         toast.error('Invalid OTP. Please try again.');
       }
     } catch (error) {
-      const msg = error?.response?.data?.message || 'Verification failed. Please try again.';
-      toast.error(msg);
+      const errorMessage = error?.response?.data?.message;
+      if (errorMessage && errorMessage.toLowerCase().includes('expired')) {
+        toast.error('OTP has expired. Please request a new one.');
+      } else if (errorMessage && errorMessage.toLowerCase().includes('too many')) {
+        toast.error(errorMessage); // Rate limiting message
+      } else {
+        const msg = errorMessage || 'Verification failed. Please try again.';
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -246,7 +264,10 @@ function App() {
                           <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setOtpRequested(false)}
+                            onClick={() => {
+                              setOtpRequested(false);
+                              setOtp('');
+                            }}
                             className="flex-1"
                           >
                             Back
@@ -261,7 +282,7 @@ function App() {
                             Verify OTP
                           </Button>
                         </div>
-                      </motion.form>
+                        </motion.form>
                     )}
                   </AnimatePresence>
 

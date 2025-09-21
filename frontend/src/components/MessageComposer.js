@@ -297,16 +297,16 @@ const MessageComposer = ({ user, contacts = [], isTeacher = false, initialContac
       
       let confirmed = false;
       
-      if (isCapacitor) {
+      if (false) { // Temporarily disabled for web testing
         // Use Capacitor Dialog for native apps
         try {
-          const { Dialog } = await import('@capacitor/dialog');
-          const result = await Dialog.confirm({
-            title: 'Clear Chat',
-            message: 'Are you sure you want to clear this chat? This action cannot be undone.',
-            okButtonTitle: 'Clear',
-            cancelButtonTitle: 'Cancel'
-          });
+          // const { Dialog } = await import('@capacitor/dialog');
+          const result = await Promise.resolve({ value: false }); // Dialog.confirm({
+          //   title: 'Clear Chat',
+          //   message: 'Are you sure you want to clear this chat? This action cannot be undone.',
+          //   okButtonTitle: 'Clear',
+          //   cancelButtonTitle: 'Cancel'
+          // });
           confirmed = result.value;
         } catch (error) {
           // Fallback to native confirm if Capacitor Dialog not available
