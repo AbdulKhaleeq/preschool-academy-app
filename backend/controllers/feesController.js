@@ -239,8 +239,6 @@ const getParentDues = async (req, res) => {
   try {
     const { parentId } = req.params;
 
-    console.log(`👨‍👩‍👧‍👦 Getting pending dues for parent ID: ${parentId}`);
-
     // Get all unpaid fees for students linked to this parent
     const result = await pool.query(`
       SELECT 

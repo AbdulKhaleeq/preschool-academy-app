@@ -7,6 +7,8 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('🚨 Unhandled Rejection:', reason);
 });
 
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -25,8 +27,6 @@ const expensesRoutes = require('./routes/expensesRoutes');
 const financialRoutes = require('./routes/financialRoutes');
 const studentsUpdateRoutes = require('./routes/studentsUpdateRoutes');
 const { runMigrations } = require('./config/dbInit');
-
-require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -76,7 +76,9 @@ runMigrations()
     });
   })
   .catch((err) => {
-    // comment this out temporarily to keep server alive
-    // process.exit(1);
+    console.error('Database migrations failed, starting server anyway:', err?.message || err);
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT} (without successful DB migration)`);
+    });
   });
 

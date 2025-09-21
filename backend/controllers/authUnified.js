@@ -30,6 +30,34 @@ const MAX_REQUESTS = 5; // Max OTP requests
 const REQUEST_WINDOW = 10 * 60 * 1000; // 10 minutes
 const OTP_EXPIRY = 25 * 1000; // 25 seconds (shorter for security)
 
+// Precheck endpoint: validate that the phone belongs to an admin or an existing active user
+// POST /auth/precheck-phone { phone }
+const precheckPhone = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ success: false, message: 'Phone is required' });
+
+    const normalized = normalizePhone(phone);
+
+    if (isAdminPhone(normalized)) {
+      return res.json({ success: true, role: 'admin' });
+    }
+
+    const result = await pool.query('SELECT role, is_active FROM users WHERE phone_number = $1 LIMIT 1', [normalized]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Mobile number not registered. Please contact admin.' });
+    }
+    const user = result.rows[0];
+    if (!user.is_active) {
+      return res.status(403).json({ success: false, blocked: true, message: 'Your account has been blocked. Please contact admin.' });
+    }
+    return res.json({ success: true, role: user.role });
+  } catch (err) {
+    console.error('Error in precheckPhone:', err);
+    return res.status(500).json({ success: false, message: 'Failed to validate phone' });
+  }
+};
+
 const requestOtp = async (req, res) => {
   try {
     const { phone } = req.body; // No longer expecting role from frontend
@@ -191,7 +219,8 @@ const verifyOtp = async (req, res) => {
   }
 };
 
-module.exports = { requestOtp, verifyOtp };
+module.exports = { requestOtp, verifyOtp, precheckPhone };
+
 
 
 

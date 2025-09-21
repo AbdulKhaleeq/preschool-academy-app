@@ -3,6 +3,8 @@ import Dashboard from './components/Dashboard';
 import AppFlowController from './components/AppFlowController';
 import './styles/globals.css';
 import api from './api';
+import { auth, initOrResetRecaptcha } from './firebase';
+import { signInWithPhoneNumber, signOut } from 'firebase/auth';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Card, Button, Input } from './components/ui';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,9 +18,27 @@ function App() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [otpRequested, setOtpRequested] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  // Rate limiting states
+  const [canRequestOtp, setCanRequestOtp] = useState(true);
+  const [countdown, setCountdown] = useState(0);
+
+  // Rate limiting countdown effect
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setTimeout(() => {
+        setCountdown(countdown - 1);
+      }, 1000);
+    } else if (countdown === 0 && !canRequestOtp) {
+      setCanRequestOtp(true);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown, canRequestOtp]);
 
   // 30-day auto logout check
   useEffect(() => {
@@ -58,38 +78,65 @@ function App() {
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
+    
+    if (!canRequestOtp) {
+      toast.error(`Please wait ${countdown} seconds before requesting another OTP`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      // Clean phone number (remove spaces)
-      const cleanPhone = phoneNumber.trim();
+      // Clean phone number and prefix country code +91
+      const local = phoneNumber.trim();
+      const e164 = `+91${local}`;
       
-      const { data } = await api.post('/auth/request-otp', { phone: cleanPhone });
-      if (data.success) {
-        setOtpRequested(true);
-        toast.success(`OTP sent successfully! Demo OTP: ${data.otp || '******'}`);
-      } else {
-        // Handle specific error messages
-        if (data.message && data.message.toLowerCase().includes('not found')) {
-          toast.error('Mobile number not registered. Please contact admin.');
-        } else if (data.message && data.message.toLowerCase().includes('too many')) {
-          toast.error(data.message); // Rate limiting message
-        } else {
-          toast.error(data.message || 'Failed to request OTP');
-        }
+      // Pre-check with backend if this mobile is registered/allowed before sending SMS
+      try {
+        await api.post('/auth/precheck-phone', { phone: local });
+      } catch (preErr) {
+        const msg = preErr?.response?.data?.message || 'Mobile number not registered. Please contact admin.';
+        throw new Error(msg);
       }
+
+      // Initialize a fresh invisible reCAPTCHA each request to avoid removed element errors
+      const verifier = initOrResetRecaptcha();
+      
+      // Render the reCAPTCHA verifier before using it
+      await verifier.render();
+      
+      const result = await signInWithPhoneNumber(auth, e164, verifier);
+      setConfirmationResult(result);
+      setOtpRequested(true);
+      
+      // Start rate limiting countdown (60 seconds)
+      setCanRequestOtp(false);
+      setCountdown(60);
+      
+      toast.success('OTP sent successfully');
     } catch (error) {
-      // Handle network/server errors
-      const errorMessage = error?.response?.data?.message;
-      if (errorMessage && errorMessage.toLowerCase().includes('not found')) {
-        toast.error('Mobile number not registered. Please contact admin.');
-      } else if (errorMessage && errorMessage.toLowerCase().includes('not registered')) {
-        toast.error('Mobile number not registered. Please contact admin.');
-      } else if (errorMessage && errorMessage.toLowerCase().includes('too many')) {
-        toast.error(errorMessage); // Rate limiting message
-      } else {
-        toast.error(errorMessage || 'Connection error. Please try again.');
+      // Enhanced error handling for Firebase auth errors
+      let errorMessage = 'Failed to send OTP. Please try again.';
+      
+      if (error.code === 'auth/invalid-app-credential') {
+        errorMessage = 'App credentials invalid. Please check Firebase configuration and authorized domains.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please wait before trying again.';
+      } else if (error.code === 'auth/captcha-check-failed') {
+        errorMessage = 'reCAPTCHA verification failed. Please try again.';
+      } else if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format.';
+      } else if (error.code === 'auth/quota-exceeded') {
+        errorMessage = 'SMS quota exceeded. Please try again later.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
+      
+      toast.error(errorMessage);
+      
+      // Reset state on error
+      setOtpRequested(false);
+      setConfirmationResult(null);
     }
     
     setLoading(false);
@@ -100,12 +147,23 @@ function App() {
     setLoading(true);
 
     try {
-      const { data } = await api.post('/auth/verify-otp', { phone: phoneNumber.trim(), otp });
+      if (!confirmationResult) {
+        toast.error('Please request OTP again.');
+        return;
+      }
+      // Confirm OTP with Firebase
+      const credential = await confirmationResult.confirm(otp);
+      // Get Firebase ID token
+      const idToken = await credential.user.getIdToken();
+      // Exchange with backend for app JWT and role
+      const { data } = await api.post('/auth/firebase-login', {
+        idToken,
+        phone: phoneNumber.trim(),
+      });
       if (data.success) {
-        // Reset all OTP states on successful verification
         setOtpRequested(false);
         setOtp('');
-        
+        setConfirmationResult(null);
         localStorage.setItem('token', data.token);
         localStorage.setItem('wellington_last_login', Date.now().toString());
         const loggedInUser = { ...data.user };
@@ -114,29 +172,19 @@ function App() {
         toast.success(`Welcome ${data.user.role}! Successfully logged in!`);
       } else if (data.blocked) {
         toast.error('Your account has been blocked. Please contact admin.');
-      } else if (data.message && data.message.toLowerCase().includes('expired')) {
-        toast.error('OTP has expired. Please request a new one.');
-      } else if (data.message && data.message.toLowerCase().includes('too many')) {
-        toast.error(data.message); // Rate limiting message
       } else {
-        toast.error('Invalid OTP. Please try again.');
+        toast.error(data.message || 'Login failed.');
       }
     } catch (error) {
-      const errorMessage = error?.response?.data?.message;
-      if (errorMessage && errorMessage.toLowerCase().includes('expired')) {
-        toast.error('OTP has expired. Please request a new one.');
-      } else if (errorMessage && errorMessage.toLowerCase().includes('too many')) {
-        toast.error(errorMessage); // Rate limiting message
-      } else {
-        const msg = errorMessage || 'Verification failed. Please try again.';
-        toast.error(msg);
-      }
+      const errorMessage = error?.response?.data?.message || error?.message;
+      toast.error(errorMessage || 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = () => {
+    try { signOut(auth); } catch (e) {}
     localStorage.removeItem('token');
     localStorage.removeItem('wellington_last_login'); // Clear login timestamp
     localStorage.removeItem('wellington_onboarding_completed'); // Reset onboarding on logout
@@ -227,12 +275,18 @@ function App() {
                         <Button
                           type="submit"
                           loading={loading}
-                          disabled={!isMobileValid || loading}
+                          disabled={!isMobileValid || loading || !canRequestOtp}
                           className="w-full"
                           variant="gradient"
                         >
-                          Send OTP
+                          {!canRequestOtp ? `Resend OTP in ${countdown}s` : 'Send OTP'}
                         </Button>
+                        
+                        {!canRequestOtp && (
+                          <p className="text-sm text-gray-500 mt-2 text-center">
+                            Please wait {countdown} seconds before requesting another OTP
+                          </p>
+                        )}
                       </motion.form>
                     ) : (
                       <motion.form
@@ -282,6 +336,25 @@ function App() {
                             Verify OTP
                           </Button>
                         </div>
+                        
+                        {/* Resend OTP Button with Rate Limiting */}
+                        <div className="text-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={handleRequestOtp}
+                            disabled={!canRequestOtp || loading}
+                            className="text-sm"
+                          >
+                            {!canRequestOtp ? `Resend OTP in ${countdown}s` : 'Resend OTP'}
+                          </Button>
+                          
+                          {!canRequestOtp && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Please wait {countdown} seconds before requesting another OTP
+                            </p>
+                          )}
+                        </div>
                         </motion.form>
                     )}
                   </AnimatePresence>
@@ -299,7 +372,7 @@ function App() {
                       Phone: 9876543210
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      OTP will be shown after requesting
+                      OTP will arrive by SMS
                     </p>
                   </motion.div>
                 </Card>
