@@ -27,6 +27,25 @@ function App() {
   const [canRequestOtp, setCanRequestOtp] = useState(true);
   const [countdown, setCountdown] = useState(0);
 
+    // 🔑 Restore user session on startup
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const lastLoginTime = localStorage.getItem('wellington_last_login');
+    if (token && lastLoginTime) {
+      const daysSinceLogin = (Date.now() - parseInt(lastLoginTime)) / (24 * 60 * 60 * 1000);
+      if (daysSinceLogin < 30) {
+        // ✅ Restore logged-in state
+        setIsLoggedIn(true);
+        // Optionally, fetch user details from backend using token
+        setUser({ role: 'user' }); // Placeholder; adjust as needed
+      } else {
+        // Session expired
+        localStorage.removeItem('token');
+        localStorage.removeItem('wellington_last_login');
+      }
+    }
+  }, []);
+
   // Rate limiting countdown effect
   useEffect(() => {
     let timer;
@@ -119,7 +138,7 @@ function App() {
       let errorMessage = 'Failed to send OTP. Please try again.';
       
       if (error.code === 'auth/invalid-app-credential') {
-        errorMessage = 'App credentials invalid. Please check Firebase configuration and authorized domains.';
+        errorMessage = 'App credentials invalid';
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please wait before trying again.';
       } else if (error.code === 'auth/captcha-check-failed') {
