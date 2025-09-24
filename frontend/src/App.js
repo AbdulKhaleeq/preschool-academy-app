@@ -379,23 +379,6 @@ function App() {
                         </motion.form>
                     )}
                   </AnimatePresence>
-
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
-                  >
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Demo Login:
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Phone: 9876543210
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      OTP will arrive by SMS
-                    </p>
-                  </motion.div>
                 </Card>
               </motion.div>
             </div>
