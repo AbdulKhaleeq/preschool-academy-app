@@ -31,17 +31,18 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const lastLoginTime = localStorage.getItem('wellington_last_login');
-    if (token && lastLoginTime) {
-      const daysSinceLogin = (Date.now() - parseInt(lastLoginTime)) / (24 * 60 * 60 * 1000);
+    const savedUser = localStorage.getItem('wellington_user');
+    if (token && lastLoginTime && savedUser) {
+    const daysSinceLogin = (Date.now() - parseInt(lastLoginTime)) / (24 * 60 * 60 * 1000);
+
       if (daysSinceLogin < 30) {
-        // ✅ Restore logged-in state
         setIsLoggedIn(true);
-        // Optionally, fetch user details from backend using token
-        setUser({ role: 'user' }); // Placeholder; adjust as needed
+        setUser(JSON.parse(savedUser)); // ✅ real user with proper role
       } else {
         // Session expired
         localStorage.removeItem('token');
         localStorage.removeItem('wellington_last_login');
+        localStorage.removeItem('wellington_user');
       }
     }
   }, []);
@@ -185,6 +186,7 @@ function App() {
         setConfirmationResult(null);
         localStorage.setItem('token', data.token);
         localStorage.setItem('wellington_last_login', Date.now().toString());
+        localStorage.setItem('wellington_user', JSON.stringify(data.user));
         const loggedInUser = { ...data.user };
         setUser(loggedInUser);
         setIsLoggedIn(true);
