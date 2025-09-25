@@ -7,14 +7,9 @@ self.addEventListener('install', event => {
         '/offline.html',
         '/manifest.json',
         '/favicon.ico',
-        '/logo192.png',
-        '/logo512.png',
-        '/MyLogo.png',
-        // Precache static assets (update paths as needed)
-        '/static/css/main.css',
-        '/static/js/bundle.js',
-        '/static/js/main.js',
-        // Add more assets if needed
+        '/icon/wellington-192.png',
+        '/icon/wellington-512.png',
+        '/MyLogo.png'
       ]);
     })
   );
