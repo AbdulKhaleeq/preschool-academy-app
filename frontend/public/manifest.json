@@ -1,6 +1,7 @@
 {
   "short_name": "Wellington Kids",
   "name": "Wellington Kids Preschool",
+  "id": "/",
   "icons": [
     {
       "src": "/icons/wellington-192.png",
@@ -11,10 +12,17 @@
       "src": "/icons/wellington-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/icons/wellington-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#ffffff",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "orientation": "portrait"
 }
