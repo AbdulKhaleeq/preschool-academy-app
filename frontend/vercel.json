@@ -1,8 +1,14 @@
 {
-  "redirects": [
+  "rewrites": [
     {
-      "source": "/vercel-test",
-      "destination": "https://example.com"
+      "source": "/",
+      "destination": "/privacy.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "policy.wellingtonkids.in"
+        }
+      ]
     }
   ]
 }
