@@ -4,9 +4,8 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.wellingtonkids.preschool",
-      "sha256_cert_fingerprints": [
-        "0B:35:04:11:7E:81:0B:0F:D6:D8:8D:6F:82:B4:31:34:28:B2:62:E1:04:16:DB:DB:8A:23:6F:E4:B0:5F:DE:66"
-      ]
+      "sha256_cert_fingerprints":
+        ["0B:35:04:11:7E:81:0B:0F:D6:D8:8D:6F:82:B4:31:34:28:B2:62:E1:04:16:DB:DB:8A:23:6F:E4:B0:5F:DE:66"]
     }
   }
 ]
