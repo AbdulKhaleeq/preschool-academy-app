@@ -252,7 +252,7 @@ function App() {
                         alt="Wellington Kids Logo"
                         className="w-10 h-10 object-contain"
                       />
-                      <h1 className="text-3xl font-bold text-gradient">
+                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gradient whitespace-nowrap text-center">
                         Wellington Kids
                       </h1>
                     </motion.div>

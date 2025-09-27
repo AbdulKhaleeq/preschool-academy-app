@@ -1,0 +1,14 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/privacy.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "policy.wellingtonkids.in"
+        }
+      ]
+    }
+  ]
+}
